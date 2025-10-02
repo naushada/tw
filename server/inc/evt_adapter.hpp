@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include <chrono>
+#include <memory>
 
 extern "C" {
   #include <sys/types.h>
@@ -15,9 +16,10 @@ extern "C" {
 class evt_base {
   public:
 
-    static std::shared_ptr<evt_base> get_instance() {
-      static std::shared_ptr<evt_base> instance(new evt_base());
-      return instance;
+    evt_base(std::int32_t priority = 0): m_event_base_p(event_base_new(), event_base_free) {
+      if(priority > 0 && priority <= 255) {
+        event_base_priority_init(m_event_base_p.get(), priority);
+      }
     }
 
     struct event_base* operator->() const {
@@ -39,13 +41,8 @@ class evt_base {
     explicit operator bool() const {return (m_event_base_p != nullptr);}
 
   private:
-    evt_base(std::int32_t priority = 0): m_event_base_p(event_base_new(), event_base_free) {
-      if(priority > 0 && priority <= 255) {
-        event_base_priority_init(m_event_base_p.get(), priority);
-      }
-    }
 
-    std::unique_ptr<struct event_base, decltype(&event_base_free)> m_event_base_p; 
+    std::shared_ptr<struct event_base> m_event_base_p; 
 };
 
 class evt {
@@ -60,37 +57,35 @@ class evt {
       All = (Timeout|Read|Write|Signal|Persist|ET)
     };
 
-    evt(evt::events evt_type) : 
-      m_evt_base_p(evt_base::get_instance()),
-      m_events_p(nullptr, event_free),
-      m_fd(-1) {
-        m_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        m_events_p.reset(event_new(m_evt_base_p->get(), m_fd, to_int(evt_type), evt_callback, this));
+    evt(std::shared_ptr<evt_base> base, evt::events evt_type, evutil_socket_t handle) : 
+      m_evt_base_p(base),
+      m_events_p(event_new(m_evt_base_p->get(), handle, to_int(evt_type), evt_callback, this), event_free),
+      m_fd(handle) {
+//        m_events_p = std::make_shared<struct event>(event_new(m_evt_base_p->get(), m_fd, to_int(evt_type), evt_callback, this), event_free);
         add_event();
       }
  
-    evt(evt::events evt_type, std::chrono::seconds to_secs) : 
-      m_evt_base_p(evt_base::get_instance()),
-      m_events_p(nullptr, event_free),
+    evt(std::shared_ptr<evt_base> base, evt::events evt_type, std::chrono::seconds to_secs) : 
+      m_evt_base_p(base),
+      m_events_p(event_new(m_evt_base_p->get(), -1, to_int(evt_type), evt_callback, this), event_free),
       m_fd(-1),
       m_to{.tv_sec=0, .tv_usec=0} {
         m_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        m_events_p.reset(event_new(m_evt_base_p->get(), m_fd, to_int(evt_type), evt_callback, this));
         m_to.tv_sec= to_secs.count();
         m_to.tv_usec = 0;
         add_event(&m_to);
       }
 
-    evt(const bool& is_periodic, const std::chrono::seconds& to_secs) : 
-      m_evt_base_p(evt_base::get_instance()),
-      m_events_p(nullptr, event_free),
+    evt(std::shared_ptr<evt_base> base, const bool& is_periodic, const std::chrono::seconds& to_secs) : 
+      m_evt_base_p(base),
+      m_events_p(event_new(m_evt_base_p->get(), -1, to_int(evt::events::Timeout), evt_callback, this), event_free),
       m_fd(-1),
       m_is_periodic(is_periodic) {
 
         if(is_periodic) {
-          m_events_p.reset(event_new(m_evt_base_p->get(), -1, (to_int(evt::events::Timeout) | to_int(evt::events::Persist)), evt_callback, this));
+          //m_events_p = std::make_shared<struct event>(event_new(m_evt_base_p->get(), -1, (to_int(evt::events::Timeout) | to_int(evt::events::Persist)), evt_callback, this), event_free);
         } else {
-          m_events_p.reset(event_new(m_evt_base_p->get(), -1, to_int(evt::events::Timeout), evt_callback, this));
+          //m_events_p = std::make_shared<struct event>(event_new(m_evt_base_p->get(), -1, to_int(evt::events::Timeout), evt_callback, this), event_free);
         }
 
         m_to.tv_sec= to_secs.count();
@@ -192,14 +187,14 @@ class evt {
 
   private:
     std::shared_ptr<evt_base> m_evt_base_p;
-    std::unique_ptr<struct event, decltype(&event_free)> m_events_p;
+    std::shared_ptr<struct event> m_events_p;
     std::int32_t m_fd;
     struct timeval m_to;
     bool m_is_periodic;
 };
 
 struct evt_loop {
-  int operator()() {event_base_dispatch(evt_base::get_instance()->get());}
+  int operator()(std::shared_ptr<evt_base> base) {event_base_dispatch(base->get());}
 };
 
 #endif

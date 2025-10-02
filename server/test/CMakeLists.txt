@@ -29,7 +29,10 @@ include_directories(../inc)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++2a -g -Wall -Wextra")
 
 #However, the file(GLOB...) allows for wildcard additions:
-file(GLOB SOURCES "*.cpp")
+file(GLOB SOURCES "*.cpp" "../src/client_adapter.cpp"
+                          "../src/evt_adapter.cpp",
+                          "../src/io_adapter.cpp"
+                          )
 
 enable_testing()
 

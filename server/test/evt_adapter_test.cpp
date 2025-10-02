@@ -6,9 +6,15 @@
 #include "evt_adapter_test.hpp"
 
 
+EventAdapterTest::EventAdapterTest():
+  m_base(std::make_shared<evt_base>()),
+  m_svcs_p(std::make_shared<server_service<rw_operation>>(m_base, "0.0.0.0", 8080)) {
+  //m_svcs_p = std::make_shared<rw_operation>(m_base, "0.0.0.0", 8080);
+}
+
 void  EventAdapterTest::SetUp() {
-  m_evts.emplace_back(timer_evt(false, std::chrono::seconds(2)));
-  m_evts.emplace_back(io_evt(evt::events::Read, std::chrono::seconds(2)));
+  //m_evts.emplace_back(timer_evt(false, std::chrono::seconds(2)));
+  //m_svcs.emplace_back(server_service("0.0.0.0", 8080));
 }
 
 
