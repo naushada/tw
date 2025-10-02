@@ -15,12 +15,13 @@ extern "C" {
 
 class io_evt {
   public:
-    io_evt(std::shared_ptr<evt_base> evt_base_p, evutil_socket_t handle, const std::string& peer_host, const std::int32_t& event, const std::chrono::seconds& secs, std::shared_ptr<io_operation> io_operation_p = std::make_shared<rw_operation>()) : 
+    io_evt(std::shared_ptr<evt_base> evt_base_p, evutil_socket_t handle, const std::string& peer_host, const std::int32_t& event, const std::chrono::seconds& secs, std::shared_ptr<io_operation> io_operation_p = std::make_shared<rw_operation>()) :
       m_buffer_evt_p(bufferevent_socket_new(evt_base_p->get(), handle, BEV_OPT_CLOSE_ON_FREE), bufferevent_free),
       m_evt_base_p(evt_base_p),
-      m_from_host(peer_host) {
+      m_from_host(peer_host),
+      m_io_operation_p(io_operation_p) {
       bufferevent_setcb(m_buffer_evt_p.get(), read_cb, write_cb, event_cb, this);
-      bufferevent_enable(m_buffer_evt_p.get(), static_cast<std::int32_t>(event));
+      bufferevent_enable(m_buffer_evt_p.get(), event);
     }
 
     static void read_cb(struct bufferevent *bev, void *ctx) {
@@ -30,7 +31,10 @@ class io_evt {
       size_t nbytes = evbuffer_get_length(input);
       std::vector<std::uint8_t> buffer(nbytes);
       evbuffer_remove(input, buffer.data(), nbytes);
-      instance->get_io_operation()->handle_read(handle, buffer, nbytes);
+      //std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << std::string((char *)buffer.data(), nbytes) << std::endl;
+      if(instance->get_io_operation()) {
+        instance->get_io_operation()->handle_read(handle, buffer, nbytes);
+      }
     }
     
     std::int32_t tx(const char* buffer, const size_t& len) {

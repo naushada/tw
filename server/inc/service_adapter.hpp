@@ -39,19 +39,19 @@ class server_service {
     static void accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
                                struct sockaddr *sa, int socklen, void *ctx) {
       auto instance = static_cast<server_service*>(ctx);
-      instance->connected_client().insert(std::pair<std::int32_t, io_evt>(handle, io_evt(instance->evt_base_p(), handle,
+      instance->connected_client().insert(std::pair<std::int32_t, std::shared_ptr<io_evt>>(handle, std::make_shared<io_evt>(instance->evt_base_p(), handle,
                                 inet_ntoa(((struct sockaddr_in*)sa)->sin_addr),
                                 EV_READ|EV_WRITE, std::chrono::seconds(2), instance->io_operation())));
     }
 
     std::shared_ptr<evt_base> evt_base_p() const {return m_evt_base_p;}
-    std::shared_ptr<rw_operation> io_operation() const {return m_io_operation_p;}
+    std::shared_ptr<rw_operation> io_operation() {return m_io_operation_p;}
   private:
 
     std::shared_ptr<evt_base> m_evt_base_p;
     std::unique_ptr<struct evconnlistener, decltype(&evconnlistener_free)> m_listener_p;
     struct sockaddr_in m_listener_addr;
-    std::unordered_map<std::int32_t, io_evt> m_connected_client;
+    std::unordered_map<std::int32_t, std::shared_ptr<io_evt>> m_connected_client;
     std::shared_ptr<rw_operation> m_io_operation_p;
 };
 
