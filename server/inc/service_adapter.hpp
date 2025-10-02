@@ -39,13 +39,57 @@ class server_service {
     static void accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
                                struct sockaddr *sa, int socklen, void *ctx) {
       auto instance = static_cast<server_service*>(ctx);
-      instance->connected_client().insert(std::pair<std::int32_t, std::shared_ptr<io_evt>>(handle, std::make_shared<io_evt>(instance->evt_base_p(), handle,
+      auto events = EV_READ|EV_WRITE;
+      auto conn_handler = std::make_shared<io_evt>(instance->evt_base_p(), handle,
                                 inet_ntoa(((struct sockaddr_in*)sa)->sin_addr),
-                                EV_READ|EV_WRITE, std::chrono::seconds(2), instance->io_operation())));
+                                events, std::chrono::seconds(2), instance->io_operation());
+
+      bufferevent_setcb(conn_handler->get_buffer_evt().get(), read_cb, write_cb, event_cb, ctx);
+      bufferevent_enable(conn_handler->get_buffer_evt().get(), events);
+      instance->connected_client().insert(std::pair<std::int32_t, std::shared_ptr<io_evt>>(handle, conn_handler));
+    }
+
+    static void read_cb(struct bufferevent *bev, void *ctx) {
+      auto instance = static_cast<server_service*>(ctx);
+      struct evbuffer *input = bufferevent_get_input(bev);
+      evutil_socket_t handle = bufferevent_getfd(bev);
+      size_t nbytes = evbuffer_get_length(input);
+      std::vector<std::uint8_t> buffer(nbytes);
+      evbuffer_remove(input, buffer.data(), nbytes);
+      //std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << std::string((char *)buffer.data(), nbytes) << std::endl;
+      auto conn_handler = instance->connected_client().find(handle);
+      if(conn_handler->second->get_io_operation()) {
+        conn_handler->second->get_io_operation()->handle_read(handle, buffer, nbytes);
+      }
+    }
+    
+    std::int32_t tx(const char* buffer, const size_t& len) {
+      //bufferevent_write(m_buffer_evt_p.get(), (void *)buffer, len); 
+    }
+
+    static void write_cb(struct bufferevent *bev, void *ctx) {
+      // Handle write completion if needed
+    }
+
+    static void event_cb(struct bufferevent *bev, short events, void *ctx) {
+      auto instance = static_cast<server_service*>(ctx);
+      evutil_socket_t handle = bufferevent_getfd(bev);
+      auto conn_handler = instance->connected_client().find(handle);
+      if(conn_handler->second->get_io_operation()) {
+        conn_handler->second->get_io_operation()->handle_event(events);
+      }
+
+      if(events & BEV_EVENT_ERROR) {
+        perror("Error from bufferevent");
+      }
+      if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
+        instance->connected_client().erase(handle); 
+      }
     }
 
     std::shared_ptr<evt_base> evt_base_p() const {return m_evt_base_p;}
-    std::shared_ptr<rw_operation> io_operation() {return m_io_operation_p;}
+    std::shared_ptr<rw_operation> io_operation() const {return m_io_operation_p;}
+
   private:
 
     std::shared_ptr<evt_base> m_evt_base_p;
