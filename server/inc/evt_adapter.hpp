@@ -14,9 +14,12 @@ extern "C" {
 }
 
 class evt_base {
-  public:
+  struct evtDeleter {
+    void operator()(struct event_base* evt) {event_base_free(evt);}
+  };
 
-    evt_base(std::int32_t priority = 0): m_event_base_p(event_base_new(), event_base_free) {
+  public:
+    evt_base(std::int32_t priority = 0): m_event_base_p(event_base_new()) {
       if(priority > 0 && priority <= 255) {
         event_base_priority_init(m_event_base_p.get(), priority);
       }
@@ -42,7 +45,7 @@ class evt_base {
 
   private:
 
-    std::shared_ptr<struct event_base> m_event_base_p; 
+    std::unique_ptr<struct event_base, evt_base::evtDeleter> m_event_base_p; 
 };
 
 class evt {

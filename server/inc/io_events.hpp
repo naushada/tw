@@ -13,12 +13,16 @@ extern "C" {
 #include "io_operations.hpp"
 
 class io_evt {
+  struct deleter {
+    void operator()(struct bufferevent* bevt) {bufferevent_free(bevt);}
+  };
+
   public:
-    io_evt(std::shared_ptr<evt_base> evt_base_p, evutil_socket_t handle, const std::string& peer_host, const std::int32_t& event, const std::chrono::seconds& secs, std::shared_ptr<io_operation> io_operation_p = std::make_shared<rw_operation>()) :
-      m_buffer_evt_p(bufferevent_socket_new(evt_base_p->get(), handle, BEV_OPT_CLOSE_ON_FREE), bufferevent_free),
-      m_evt_base_p(evt_base_p),
+    io_evt(const evt_base& evt_base_ref, evutil_socket_t handle, const std::string& peer_host, const std::int32_t& event, const std::chrono::seconds& secs, const io_operation& io_operation_ref) :
+      m_evt_base(evt_base_ref),
+      m_buffer_evt_p(bufferevent_socket_new(m_evt_base.get(), handle, BEV_OPT_CLOSE_ON_FREE)),
       m_from_host(peer_host),
-      m_io_operation_p(io_operation_p) {
+      m_io_operation(io_operation_ref) {
     }
     
     std::int32_t tx(const char* buffer, const size_t& len) {
@@ -26,14 +30,15 @@ class io_evt {
     }
 
     virtual ~io_evt() = default;
-    std::shared_ptr<io_operation> get_io_operation() const {return m_io_operation_p;}
-    std::shared_ptr<struct bufferevent> get_buffer_evt() {return m_buffer_evt_p;}
+    io_operation get_io_operation() const {return m_io_operation;}
+    // returning managed object of unique_ptr
+    struct bufferevent* get_bufferevt() const {return m_buffer_evt_p.get();}
 
   private:
-    std::shared_ptr<struct bufferevent> m_buffer_evt_p;
-    std::shared_ptr<evt_base> m_evt_base_p;
+    const evt_base& m_evt_base;
+    std::unique_ptr<struct bufferevent, io_evt::deleter> m_buffer_evt_p;
     std::string m_from_host;
-    std::shared_ptr<io_operation> m_io_operation_p;
+    const io_operation& m_io_operation;
 };
 
 /*

@@ -9,7 +9,7 @@
 EventAdapterTest::EventAdapterTest():
   m_base(std::make_shared<evt_base>()),
   //m_run(std::make_unique<evt_loop>()),
-  m_svcs_p(std::make_shared<server_service<rw_operation>>(m_base, "0.0.0.0", 8080)) {
+  m_svcs_p(std::make_shared<server_service<rw_operation>>(*m_base, "0.0.0.0", 8080)) {
   //m_svcs_p = std::make_shared<rw_operation>(m_base, "0.0.0.0", 8080);
 }
 
