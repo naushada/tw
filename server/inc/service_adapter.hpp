@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <memory>
 
-#include "io_adapter.hpp"
+#include "io_events.hpp"
 #include "evt_adapter.hpp"
 #include "io_operations.hpp"
 
@@ -37,16 +37,21 @@ class server_service {
     auto& connected_client() { return m_connected_client;}
     
     static void accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
-                               struct sockaddr *sa, int socklen, void *ctx) {
+                                   struct sockaddr *sa, int socklen, void *ctx) {
       auto instance = static_cast<server_service*>(ctx);
       auto events = EV_READ|EV_WRITE;
       auto conn_handler = std::make_shared<io_evt>(instance->evt_base_p(), handle,
-                                inet_ntoa(((struct sockaddr_in*)sa)->sin_addr),
-                                events, std::chrono::seconds(2), instance->io_operation());
+                                                   inet_ntoa(((struct sockaddr_in*)sa)->sin_addr),
+                                                   events, std::chrono::seconds(2),
+                                                   instance->io_operation());
 
       bufferevent_setcb(conn_handler->get_buffer_evt().get(), read_cb, write_cb, event_cb, ctx);
       bufferevent_enable(conn_handler->get_buffer_evt().get(), events);
-      instance->connected_client().insert(std::pair<std::int32_t, std::shared_ptr<io_evt>>(handle, conn_handler));
+      auto res = instance->connected_client().insert(std::pair<std::int32_t, std::shared_ptr<io_evt>>(handle, conn_handler));
+      if(!res.second) {
+        std::cout << "Addition of new client is failed for handle:" << handle << std::endl;
+        return;
+      }
     }
 
     static void read_cb(struct bufferevent *bev, void *ctx) {
@@ -63,8 +68,14 @@ class server_service {
       }
     }
     
-    std::int32_t tx(const char* buffer, const size_t& len) {
-      //bufferevent_write(m_buffer_evt_p.get(), (void *)buffer, len); 
+    std::int32_t tx(evutil_socket_t handle, const char* buffer, const size_t& nbytes) {
+      auto conn_handler = connected_client().find(handle);
+      if(conn_handler != nullptr) {
+        conn_handler->second->get_io_operation()->tx(buffer, nbytes);
+        return nbytes;
+      }
+      
+      return 0;
     }
 
     static void write_cb(struct bufferevent *bev, void *ctx) {

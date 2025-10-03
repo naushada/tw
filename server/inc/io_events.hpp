@@ -10,7 +10,6 @@ extern "C" {
 }
 
 #include "evt_adapter.hpp"
-#include "io_adapter.hpp"
 #include "io_operations.hpp"
 
 class io_evt {
@@ -20,45 +19,11 @@ class io_evt {
       m_evt_base_p(evt_base_p),
       m_from_host(peer_host),
       m_io_operation_p(io_operation_p) {
-      //bufferevent_setcb(m_buffer_evt_p.get(), read_cb, write_cb, event_cb, this);
-      //bufferevent_enable(m_buffer_evt_p.get(), event);
     }
-/*
-    static void read_cb(struct bufferevent *bev, void *ctx) {
-      auto instance = static_cast<io_evt*>(ctx);
-      struct evbuffer *input = bufferevent_get_input(bev);
-      evutil_socket_t handle = bufferevent_getfd(bev);
-      size_t nbytes = evbuffer_get_length(input);
-      std::vector<std::uint8_t> buffer(nbytes);
-      evbuffer_remove(input, buffer.data(), nbytes);
-      //std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << std::string((char *)buffer.data(), nbytes) << std::endl;
-      if(instance->get_io_operation()) {
-        instance->get_io_operation()->handle_read(handle, buffer, nbytes);
-      }
-    }
-*/    
+    
     std::int32_t tx(const char* buffer, const size_t& len) {
       bufferevent_write(m_buffer_evt_p.get(), (void *)buffer, len); 
     }
-
-#if 0
-    static void write_cb(struct bufferevent *bev, void *ctx) {
-      // Handle write completion if needed
-    }
-
-    static void event_cb(struct bufferevent *bev, short events, void *ctx) {
-      auto instance = static_cast<io_evt*>(ctx);
-      if(instance->get_io_operation()) {
-        instance->get_io_operation()->handle_event(events);
-      }
-      if(events & BEV_EVENT_ERROR) {
-        perror("Error from bufferevent");
-      }
-      if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
-        bufferevent_free(bev);
-      }
-    }
-#endif
 
     virtual ~io_evt() = default;
     std::shared_ptr<io_operation> get_io_operation() const {return m_io_operation_p;}
