@@ -197,7 +197,7 @@ class evt {
 };
 
 struct evt_loop {
-  int operator()(std::shared_ptr<evt_base> base) {event_base_dispatch(base->get());}
+  int operator()(const evt_base& base) {event_base_dispatch(base.get());}
 };
 
 #endif

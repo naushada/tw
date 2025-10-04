@@ -14,7 +14,7 @@ extern "C" {
 #include <arpa/inet.h>
 }
 
-template <typename T = rw_operation>
+template <typename T>
 class server_service {
   struct evconn_deleter {
     void operator()(struct evconnlistener* listener) {evconnlistener_free(listener);}
@@ -24,7 +24,9 @@ class server_service {
     server_service(const evt_base& evt_base_ref, const std::string& host, const std::uint32_t& port) : 
       m_evt_base(evt_base_ref),
       m_evconn_listener_p(nullptr),
-      m_io_operation(std::make_unique<T>()) {
+      m_io_operation(std::make_unique<T>()),
+      m_listener_addr(),
+      m_connected_client() {
       struct addrinfo *result;
       auto s = getaddrinfo(host.data(), std::to_string(port).c_str(), nullptr, &result);
 
@@ -34,7 +36,7 @@ class server_service {
       }
 
       m_evconn_listener_p.reset(evconnlistener_new_bind(get_event_base().get(), accept_new_conn_cb, this, 
-                         (LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE), -1,
+                         (LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE), 16/*backlog*/,
                          (struct sockaddr*)&m_listener_addr, sizeof(m_listener_addr)));
     }
 
@@ -68,11 +70,11 @@ class server_service {
       size_t nbytes = evbuffer_get_length(input);
       std::vector<std::uint8_t> buffer(nbytes);
       evbuffer_remove(input, buffer.data(), nbytes);
-      //std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << std::string((char *)buffer.data(), nbytes) << std::endl;
+      std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << std::string((char *)buffer.data(), nbytes) << std::endl;
       auto conn_handler_it = instance->connected_client().find(handle);
       if(conn_handler_it != instance->connected_client().end()) {
         auto& io_evt = *conn_handler_it->second;
-        io_evt.get_io_operation().handle_read(handle, buffer, nbytes);
+        io_evt.get_io_operation()->handle_read(handle, buffer, nbytes);
       }
     }
     
@@ -97,7 +99,7 @@ class server_service {
       auto conn_handler_it = instance->connected_client().find(handle);
       if(conn_handler_it != instance->connected_client().end()) {
         auto& io_evt = *conn_handler_it->second;
-        io_evt.get_io_operation().handle_event(events);
+        io_evt.get_io_operation()->handle_event(events);
       }
 
       if(events & BEV_EVENT_ERROR) {
@@ -109,15 +111,15 @@ class server_service {
     }
 
     const evt_base& get_event_base() const {return m_evt_base;}
-    rw_operation& io_operation() const {return *m_io_operation;}
+    auto io_operation() const {return std::make_unique<T>();}
 
   private:
 
     const evt_base& m_evt_base;
     std::unique_ptr<struct evconnlistener, evconn_deleter> m_evconn_listener_p;
+    std::unique_ptr<T> m_io_operation;
     struct sockaddr_in m_listener_addr;
     std::unordered_map<std::int32_t, std::unique_ptr<io_evt>> m_connected_client;
-    std::unique_ptr<rw_operation> m_io_operation;
 };
 
 

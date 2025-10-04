@@ -15,15 +15,15 @@ class EventAdapterTest : public ::testing::Test {
     virtual void SetUp() override;
     virtual void TearDown() override;
     virtual void TestBody() override;
-    auto svc() {return m_svcs_p;}
-    auto base() {return m_base;}
+    //auto svc() {return m_svcs_p;}
+    auto& base() {return *m_base;}
     void run() { m_run(base());}
 
   private:
-    std::shared_ptr<evt_base> m_base;
+    std::unique_ptr<evt_base> m_base;
     //std::unique_ptr<evt_loop> m_run;
     evt_loop m_run;
-    std::shared_ptr<server_service<rw_operation>> m_svcs_p;
+    std::unique_ptr<server_service<rw_operation>> m_svcs_p;
 };
 
 #endif /*__evt_adapter_test_hpp__*/
