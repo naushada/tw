@@ -3,27 +3,26 @@ project(remote_app)
 find_package(PkgConfig REQUIRED)
 
 # Use pkg-config to find libevent and set variables
-pkg_check_modules(LIBEVENT REQUIRED libevent)
+#pkg_check_modules(LIBEVENT REQUIRED libevent)
 
+#pkg_check_modules(NGHTTP2 REQUIRED nghttp2)
 # Find the Threads library, which provides pthread
 find_package(Threads REQUIRED)
 
 # Find GoogleTest
 find_package(GTest REQUIRED)
+find_path(NGHTTP2_INCLUDE_DIR nghttp2/nghttp2.h)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -Wall -Wextra")
+# find_library will search standard library locations for the specified library name
+# The name to search for is "nghttp2", without the "lib" prefix or extension
+find_library(NGHTTP2_LIBRARY nghttp2)
 
-include_directories(inc)
-add_subdirectory(test)
+#find_package(nghttp2 REQUIRED)
+# Check that the library and headers were found
+if(NOT NGHTTP2_LIBRARY OR NOT NGHTTP2_INCLUDE_DIR)
+    message(FATAL_ERROR "Could not find nghttp2 library or headers. Please check installation.")
+endif()
 
-#all files from src directory, the file(GLOB...) allows for wildcard additions:
-file(GLOB SOURCES "src/*.cpp")
+add_subdirectory(libevent_adapter)
+add_subdirectory(nghttp2_adapter)
 
-add_executable(remote_app ${SOURCES})
-
-target_link_libraries(remote_app pthread ssl crypto ${LIBEVENT_LIBRARIES})
-
-install(TARGETS remote_app
-        CONFIGURATIONS Release
-        RUNTIME DESTINATION /usr/local/bin
-)

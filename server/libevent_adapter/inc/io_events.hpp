@@ -23,6 +23,7 @@ class io_evt {
       m_buffer_evt_p(bufferevent_socket_new(m_evt_base.get(), handle, BEV_OPT_CLOSE_ON_FREE)),
       m_from_host(peer_host),
       m_io_operation(std::move(io_operation)) {
+      m_io_operation->set_bufferevent(m_buffer_evt_p.get());
     }
     
     std::int32_t tx(const char* buffer, const size_t& len) {

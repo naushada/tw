@@ -69,12 +69,14 @@ class server_service {
       evutil_socket_t handle = bufferevent_getfd(bev);
       size_t nbytes = evbuffer_get_length(input);
       std::vector<std::uint8_t> buffer(nbytes);
-      evbuffer_remove(input, buffer.data(), nbytes);
-      std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << std::string((char *)buffer.data(), nbytes) << std::endl;
+      //evbuffer_remove(input, buffer.data(), nbytes);
+      // get the contiguous block of data in oneshot
+      std::string data_str(reinterpret_cast<char *>(evbuffer_pullup(input, -1)), nbytes);
+      std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << data_str << std::endl;
       auto conn_handler_it = instance->connected_client().find(handle);
       if(conn_handler_it != instance->connected_client().end()) {
         auto& io_evt = *conn_handler_it->second;
-        io_evt.get_io_operation()->handle_read(handle, buffer, nbytes);
+        io_evt.get_io_operation()->handle_read(handle, data_str);
       }
     }
     

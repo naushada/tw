@@ -21,8 +21,10 @@ int rw_operation::handle_event(const short event) {
   return(0); 
 }
 
-
-
+int rw_operation::handle_read(evutil_socket_t handle, const std::string& in) {
+  std::cout << "rw_operation::handle_read:" << in << std::endl;
+  return(0);
+}
 
 
 
