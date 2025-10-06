@@ -7,7 +7,7 @@
 
 #include "io_events.hpp"
 #include "evt_adapter.hpp"
-#include "io_operations.hpp"
+#include "app_interface.hpp"
 
 extern "C" {
 #include <event2/listener.h>
@@ -24,7 +24,7 @@ class server_service {
     server_service(const evt_base& evt_base_ref, const std::string& host, const std::uint32_t& port) : 
       m_evt_base(evt_base_ref),
       m_evconn_listener_p(nullptr),
-      m_io_operation(std::make_unique<T>()),
+      m_app_interface(nullptr),
       m_listener_addr(),
       m_connected_client() {
       struct addrinfo *result;
@@ -58,7 +58,7 @@ class server_service {
                                    inet_ntoa(((struct sockaddr_in*)sa)->sin_addr),
                                    events,
                                    std::chrono::seconds(2),
-                                   instance->create_io_operation()/*per connection*/);
+                                   instance->create_app_interface()/*per connection*/);
 
       bufferevent_setcb(conn_handler_p->get_bufferevt(), read_cb, write_cb, event_cb, ctx);
       bufferevent_enable(conn_handler_p->get_bufferevt(), events);
@@ -118,13 +118,13 @@ class server_service {
     }
 
     const evt_base& get_event_base() const {return m_evt_base;}
-    auto create_io_operation() const {return std::make_unique<T>();}
+    auto create_app_interface() const {return std::make_unique<T>();}
 
   private:
 
     const evt_base& m_evt_base;
     std::unique_ptr<struct evconnlistener, evconn_deleter> m_evconn_listener_p;
-    std::unique_ptr<T> m_io_operation;
+    std::unique_ptr<T> m_app_interface;
     struct sockaddr_in m_listener_addr;
     std::unordered_map<std::int32_t, std::unique_ptr<io_evt>> m_connected_client;
 };

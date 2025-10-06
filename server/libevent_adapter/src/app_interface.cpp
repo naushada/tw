@@ -1,9 +1,9 @@
-#ifndef __io_operations_cpp__
-#define __io_operations_cpp__
+#ifndef __app_interface_cpp__
+#define __app_interface_cpp__
 
 
 #include <iostream>
-#include "io_operations.hpp"
+#include "app_interface.hpp"
 
 int rw_operation::handle_event(const short event) {
   std::cout <<"handle:" << m_handle << " event:" << event << std::endl;
@@ -16,7 +16,7 @@ int rw_operation::handle_read(evutil_socket_t handle, const std::string& in) {
 }
 
 
-void rw_operation::handle_connection_new(const int& handle, const std::string& addr,
+void rw_operation::handle_new_connection(const int& handle, const std::string& addr,
                      struct event_base* evbase_p,
                      struct bufferevent* bevt_p) {
 }

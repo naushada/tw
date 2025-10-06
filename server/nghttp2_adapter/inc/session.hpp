@@ -4,14 +4,14 @@
 #include <cctype>
 #include <string>
 
-#include "io_operations.hpp"
+#include "app_interface.hpp"
 
 extern "C" {
 #include <nghttp2/nghttp2.h>
 }
 
 // per http2 connection data
-class http2_conn_data : public io_operation {
+class session_data : public app_interface {
   struct custom_deleter {
     void operator()(nghttp2_session_callbacks *callbacks) {
       nghttp2_session_callbacks_del(callbacks);
@@ -24,11 +24,11 @@ class http2_conn_data : public io_operation {
 
   // streams per connection
   public:
-    struct http2_stream_data {
+    struct stream_data {
       std::string m_request_path;
       int32_t m_stream_id;
       int32_t m_fd;
-      http2_stream_data(request_path, stream_id, fd):
+      stream_data(request_path, stream_id, fd):
         m_request_path(request_path),
         m_stream_id(stream_id),
         m_fd(fd) {}
@@ -42,7 +42,7 @@ class http2_conn_data : public io_operation {
     };
 
     // Member Function
-    http2_conn_data() : m_callbacks_p(nullptr),
+    session_data() : m_callbacks_p(nullptr),
       m_session_p(nullptr) {
       nghttp2_session_callbacks* callbacks_p = nullptr;
       int rv = nghttp2_session_callbacks_new(&callbacks_p);
@@ -70,7 +70,7 @@ class http2_conn_data : public io_operation {
       m_stream_data.erase(new_end, m_stream_data.end());
     }
 
-    htt2_stream_data& get_stream_data(std::int32_t stream_id) {
+    stream_data& get_stream_data(std::int32_t stream_id) {
       auto it = std::find_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {
           return(ent.stream_id() == stream_id);
         };
@@ -174,7 +174,7 @@ class http2_conn_data : public io_operation {
     // Hook method for libevent_adapter is interfacing with below function to nghttp2_adapter    
     virtual int handle_event(const short& event) override;
     virtual int handle_read(evutil_socket_t handle, const std::string& in) override;
-    virtual void handle_connection_new(const int& handle, const std::string& addr,
+    virtual void handle_new_connection(const int& handle, const std::string& addr,
                    struct event_base* evbase_p,
                    struct bufferevent* bevt_p) override;
     virtual void handle_connection_close(int handle) override;
@@ -184,7 +184,7 @@ class http2_conn_data : public io_operation {
     std::unique_ptr<nghttp2_session , custom_deleter> m_sesion_p;
     struct event_base *m_evt_base_p;
     struct bufferevent *m_buffer_evt_p;
-    std::vector<http2_stream_data> m_stream_data;
+    std::vector<stream_data> m_stream_data;
     std::string m_client_addr;
     std::int32_t m_handle;
 };

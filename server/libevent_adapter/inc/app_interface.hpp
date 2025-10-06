@@ -1,5 +1,5 @@
-#ifndef __io_operations_hpp__
-#define __io_operations_hpp__
+#ifndef __app_interface_hpp__
+#define __app_interface_hpp__
 
 #include <vector>
 #include "evt_adapter.hpp"
@@ -8,7 +8,7 @@ extern "C" {
 #include <event2/bufferevent.h>
 }
 
-class io_operation {
+class app_interface {
   public:
     virtual int handle_event(const short event) {
       return 0;
@@ -18,7 +18,7 @@ class io_operation {
       return(0);
     }
    
-    virtual void handle_connection_new(const int& handle, const std::string& addr,
+    virtual void handle_new_connection(const int& handle, const std::string& addr,
                    struct event_base* evbase_p,
                    struct bufferevent* bevt_p) {
       std::cout << "This must be overriden in subclass" << std::endl;
@@ -30,11 +30,11 @@ class io_operation {
   protected:
 };
 
-class rw_operation : public io_operation {
+class rw_operation : public app_interface {
   public:
     virtual int handle_event(const short event) override;
     virtual int handle_read(evutil_socket_t handle, const std::string& in) override;
-    virtual void handle_connection_new(const int& handle, const std::string& addr,
+    virtual void handle_new_connection(const int& handle, const std::string& addr,
                    struct event_base* evbase_p,
                    struct bufferevent* bevt_p) override;
     virtual void handle_connection_close(int handle) override;

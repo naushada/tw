@@ -10,22 +10,22 @@ extern "C" {
 }
 
 #include "evt_adapter.hpp"
-#include "io_operations.hpp"
+#include "app_interface.hpp"
 
 class io_evt {
-  struct deleter {
+  struct custom_deleter {
     void operator()(struct bufferevent* bevt) {bufferevent_free(bevt);}
   };
 
   public:
     io_evt(const evt_base& evt_base_ref, evutil_socket_t handle,
            const std::string& peer_host, const std::int32_t& event,
-           const std::chrono::seconds& secs, std::unique_ptr<io_operation> io_operation) :
+           const std::chrono::seconds& secs, std::unique_ptr<app_interface> app_intf) :
       m_evt_base(evt_base_ref),
       m_buffer_evt_p(bufferevent_socket_new(m_evt_base.get(), handle, BEV_OPT_CLOSE_ON_FREE)),
       m_from_host(peer_host),
-      m_io_operation(std::move(io_operation)) {
-      m_io_operation->handle_connection_new(handle, m_from_host,
+      m_app_interface(std::move(app_intf)) {
+      app_interface()->handle_new_connection(handle, m_from_host,
                                             m_evt_base.get(), m_buffer_evt_p.get());
      
     }
@@ -35,15 +35,15 @@ class io_evt {
     }
 
     virtual ~io_evt() = default;
-    auto& get_io_operation() const {return m_io_operation;}
+    auto& app_interface() const {return m_app_interface;}
     // returning managed object of unique_ptr
     struct bufferevent* get_bufferevt() const {return m_buffer_evt_p.get();}
 
   private:
     const evt_base& m_evt_base;
-    std::unique_ptr<struct bufferevent, io_evt::deleter> m_buffer_evt_p;
+    std::unique_ptr<struct bufferevent, io_evt::custom_deleter> m_buffer_evt_p;
     std::string m_from_host;
-    std::unique_ptr<io_operation> m_io_operation;
+    std::unique_ptr<app_interface> m_app_interface;
 };
 
 /*
