@@ -35,28 +35,37 @@ class server_service {
         freeaddrinfo(result);
       }
 
-      m_evconn_listener_p.reset(evconnlistener_new_bind(get_event_base().get(), accept_new_conn_cb, this, 
-                         (LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE), 16/*backlog*/,
-                         (struct sockaddr*)&m_listener_addr, sizeof(m_listener_addr)));
+      // TCP server listener
+      m_evconn_listener_p.reset(evconnlistener_new_bind(get_event_base().get(),
+        accept_new_conn_cb,
+        this/*This is for *ctx*/,
+        (LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE),
+        16/*backlog*/,
+        (struct sockaddr*)&m_listener_addr,
+        sizeof(m_listener_addr)));
     }
 
     auto& connected_client() { return m_connected_client;}
-    
+   
+    // This is a callback invoked by libevent when a client is connected 
     static void accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
-                                   struct sockaddr *sa, int socklen, void *ctx) {
+                  struct sockaddr *sa, int socklen, void *ctx) {
       auto instance = static_cast<server_service*>(ctx);
       auto events = EV_READ|EV_WRITE;
-      auto conn_handler_p = std::make_unique<io_evt>(instance->get_event_base(), handle,
-                                                   inet_ntoa(((struct sockaddr_in*)sa)->sin_addr),
-                                                   events, std::chrono::seconds(2),
-                                                   instance->io_operation());
+                                       
+      auto conn_handler_p = std::make_unique<io_evt>(instance->get_event_base(),
+                                   handle,
+                                   inet_ntoa(((struct sockaddr_in*)sa)->sin_addr),
+                                   events,
+                                   std::chrono::seconds(2),
+                                   instance->create_io_operation()/*per connection*/);
 
       bufferevent_setcb(conn_handler_p->get_bufferevt(), read_cb, write_cb, event_cb, ctx);
       bufferevent_enable(conn_handler_p->get_bufferevt(), events);
 
       auto res = instance->connected_client().insert(
-        std::pair<std::int32_t, std::unique_ptr<io_evt>>(
-        handle, std::move(conn_handler_p)));
+                   std::pair<std::int32_t, std::unique_ptr<io_evt>>(
+                   handle, std::move(conn_handler_p)));
 
       if(!res.second) {
         std::cout << "Addition of new client is failed for handle:" << handle << std::endl;
@@ -69,26 +78,23 @@ class server_service {
       evutil_socket_t handle = bufferevent_getfd(bev);
       size_t nbytes = evbuffer_get_length(input);
       std::vector<std::uint8_t> buffer(nbytes);
-      //evbuffer_remove(input, buffer.data(), nbytes);
       // get the contiguous block of data in oneshot
       std::string data_str(reinterpret_cast<char *>(evbuffer_pullup(input, -1)), nbytes);
       std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << data_str << std::endl;
       auto conn_handler_it = instance->connected_client().find(handle);
       if(conn_handler_it != instance->connected_client().end()) {
-        auto& io_evt = *conn_handler_it->second;
-        io_evt.get_io_operation()->handle_read(handle, data_str);
+        conn_handler_it->second->get_io_operation()->handle_read(handle, data_str);
       }
     }
     
     std::int32_t tx(evutil_socket_t handle, const char* buffer, const size_t& nbytes) {
       auto conn_handler_it = connected_client().find(handle);
       if(conn_handler_it != connected_client().end()) {
-        auto& io_evt = *conn_handler_it->second;
-        io_evt.get_io_operation()->tx(buffer, nbytes);
+        conn_handler_it->second->get_io_operation()->tx(buffer, nbytes);
         return nbytes;
       }
       
-      return 0;
+      return -1;
     }
 
     static void write_cb(struct bufferevent *bev, void *ctx) {
@@ -100,8 +106,7 @@ class server_service {
       evutil_socket_t handle = bufferevent_getfd(bev);
       auto conn_handler_it = instance->connected_client().find(handle);
       if(conn_handler_it != instance->connected_client().end()) {
-        auto& io_evt = *conn_handler_it->second;
-        io_evt.get_io_operation()->handle_event(events);
+        conn_handler_it->second->get_io_operation()->handle_event(events);
       }
 
       if(events & BEV_EVENT_ERROR) {
@@ -113,7 +118,7 @@ class server_service {
     }
 
     const evt_base& get_event_base() const {return m_evt_base;}
-    auto io_operation() const {return std::make_unique<T>();}
+    auto create_io_operation() const {return std::make_unique<T>();}
 
   private:
 

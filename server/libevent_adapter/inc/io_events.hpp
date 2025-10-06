@@ -18,12 +18,16 @@ class io_evt {
   };
 
   public:
-    io_evt(const evt_base& evt_base_ref, evutil_socket_t handle, const std::string& peer_host, const std::int32_t& event, const std::chrono::seconds& secs, std::unique_ptr<io_operation> io_operation) :
+    io_evt(const evt_base& evt_base_ref, evutil_socket_t handle,
+           const std::string& peer_host, const std::int32_t& event,
+           const std::chrono::seconds& secs, std::unique_ptr<io_operation> io_operation) :
       m_evt_base(evt_base_ref),
       m_buffer_evt_p(bufferevent_socket_new(m_evt_base.get(), handle, BEV_OPT_CLOSE_ON_FREE)),
       m_from_host(peer_host),
       m_io_operation(std::move(io_operation)) {
-      m_io_operation->set_bufferevent(m_buffer_evt_p.get());
+      m_io_operation->handle_connection_new(handle, m_from_host,
+                                            m_evt_base.get(), m_buffer_evt_p.get());
+     
     }
     
     std::int32_t tx(const char* buffer, const size_t& len) {
