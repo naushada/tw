@@ -3,6 +3,8 @@
 
 #include <cctype>
 #include <string>
+#include <cstring>
+#include <algorithm>
 
 #include "app_interface.hpp"
 
@@ -26,14 +28,14 @@ class session_data : public app_interface {
   public:
     struct stream_data {
       std::string m_request_path;
-      int32_t m_stream_id;
-      int32_t m_fd;
-      stream_data(request_path, stream_id, fd):
+      std::int32_t m_stream_id;
+      std::int32_t m_fd;
+      stream_data(std::string request_path, std::int32_t stream_id, std::int32_t fd) :
         m_request_path(request_path),
         m_stream_id(stream_id),
         m_fd(fd) {}
-      std::string& request_path() const { return m_request_path;}
-      std::int32_t& stream_id() const {return m_stream_id;}
+      std::string request_path() const { return m_request_path;}
+      std::int32_t stream_id() const {return m_stream_id;}
       std::int32_t fd() const {return m_fd;}
 
       void request_path(const std::string& path) {m_request_path = path;}
@@ -73,7 +75,7 @@ class session_data : public app_interface {
     stream_data& get_stream_data(std::int32_t stream_id) {
       auto it = std::find_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {
           return(ent.stream_id() == stream_id);
-        };
+        });
 
       if(it != m_stream_data.end()) {
         return *it;
@@ -98,7 +100,7 @@ class session_data : public app_interface {
        and returns the decoded byte string in allocated buffer. The return
        value is NULL terminated. The caller must free the returned
        string. */
-    std::string percent_decode(const string& value) {
+    std::string percent_decode(const std::string& value) {
       std::string res;
       size_t valuelen = value.length();
       res.reserve(valuelen);
@@ -172,7 +174,7 @@ class session_data : public app_interface {
                  void *user_data);
     
     // Hook method for libevent_adapter is interfacing with below function to nghttp2_adapter    
-    virtual int handle_event(const short& event) override;
+    virtual int handle_event(const short event) override;
     virtual int handle_read(evutil_socket_t handle, const std::string& in) override;
     virtual void handle_new_connection(const int& handle, const std::string& addr,
                    struct event_base* evbase_p,
@@ -181,7 +183,7 @@ class session_data : public app_interface {
 
   private:
     std::unique_ptr<nghttp2_session_callbacks, custom_deleter> m_callbacks_p;
-    std::unique_ptr<nghttp2_session , custom_deleter> m_sesion_p;
+    std::unique_ptr<nghttp2_session , custom_deleter> m_session_p;
     struct event_base *m_evt_base_p;
     struct bufferevent *m_buffer_evt_p;
     std::vector<stream_data> m_stream_data;

@@ -5,9 +5,9 @@
 
 // virtual methods for io_operations
 int session_data::handle_event(const short what) {
-  std::cout << "fn:" << __pretty_function__ << " the event:" << what << " is" << std::endl;
+  std::cout << "fn:" << __func__ << " the event:" << what << " is" << std::endl;
   if(events & BEV_EVENT_CONNECTED) {
-    std::cout << "fn:" << __pretty_function__ << " peer is connected" << std::endl;
+    std::cout << "fn:" << __func__ << " peer is connected" << std::endl;
     #if 0
     //const unsigned char *alpn = NULL;
     //unsigned int alpnlen = 0;
@@ -38,13 +38,13 @@ int session_data::handle_event(const short what) {
   }
 
   if(events & BEV_EVENT_EOF) {
-    std::cout << "fn:" << __pretty_function__<<" peer:"<< client_addr() << 
+    std::cout << "fn:" << __func__<<" peer:"<< client_addr() << 
                  " for handle:", handle() << " is closed"<<std::endl;
   } else if(events & BEV_EVENT_ERROR) {
-    std::cout << "fn:" << __pretty_function__<<" peer:"<< client_addr() << 
+    std::cout << "fn:" << __func__<<" peer:"<< client_addr() << 
                  " for handle:", handle() << " event Error"<<std::endl;
   } else if(events & BEV_EVENT_TIMEOUT) {
-    std::cout << "fn:" << __pretty_function__<<" peer:"<< client_addr() << 
+    std::cout << "fn:" << __func__<<" peer:"<< client_addr() << 
                  " for handle:", handle() << " event timed out"<<std::endl;
   }
   //delete_http2_session_data(session_data);
@@ -59,11 +59,11 @@ int session_data::handle_read(evutil_socket_t handle, const std::string& in) {
   // session_data.
   readlen = nghttp2_session_mem_recv2(m_session_p.get(), in.data(), in.length());
   if(readlen < 0) {
-    std::cout << "fn:" << __pretty_function__ <<" line:" << __LINE__ << 
+    std::cout << "fn:" << __func__ <<" line:" << __LINE__ << 
                  " Fatal error:" << nghttp2_strerror((int)readlen) << std::endl;
     return -1;
   }
-  std::cout <<"fn:" << __pretty_function__ << " readlen:"<< readlen << std::endl;
+  std::cout <<"fn:" << __func__ << " readlen:"<< readlen << std::endl;
 /*
   if(evbuffer_drain(input, (size_t)readlen) != 0) {
     warnx("Fatal error: evbuffer_drain failed");
@@ -130,12 +130,12 @@ int session_data::on_frame_recv_callback(nghttp2_session *ng_session,
 }
 
 std::int32_t session_data::on_request_recv(std::int32_t stream_id) {
-  int fd;
+  //int fd;
   std::vector<nghttp2_nv> hdrs = {
     {MAKE_NV(":status", "200")}
   };
 
-  char *rel_path;
+  //char *rel_path;
   if(!is_stream_data_found(stream_id)) {
     std::cout << "stream data not present for stream_id:" << stream_id << std::endl;
     return 0;
@@ -148,7 +148,7 @@ std::int32_t session_data::on_request_recv(std::int32_t stream_id) {
       return NGHTTP2_ERR_CALLBACK_FAILURE;
     }
     #endif
-    std::cout <<"fn:" << __pretty_function__ <<" request_path is empty" << std::endl;
+    std::cout <<"fn:" << __func__ <<" request_path is empty" << std::endl;
     return 0;
   }
 
@@ -180,8 +180,9 @@ std::int32_t session_data::on_request_recv(std::int32_t stream_id) {
   }
 #endif
   if(send_response(m_session_p.get(), stream_data.stream_id, hdrs, ARRLEN(hdrs), fd) != 0) {
-    std::cout << "fn:" << __pretty_function__ <<" line:" << __LINE__ << " unable to send response" <<
-                 " for stream-id:" << stream_data.stream_id << std::endl; 
+    std::cout << "fn:" << __func__ <<" line:" << __LINE__ << " unable to send response" <<
+                 " for stream-id:" << stream_data.stream_id << std::endl;
+    return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
   return 0;
 }
@@ -192,7 +193,7 @@ int session_data::on_stream_close_callback(nghttp2_session *ng_session,
                        void *user_data) {
   session_data *sess_data = static_cast<session_data*>(user_data);
   sess_data->delete_stream_data(stream_id);
-  std::cout <<"fn:" << __pretty_function__ << " dtream_id:"<< stream_id << " closed" << std::endl;
+  std::cout <<"fn:" << __func__ << " dtream_id:"<< stream_id << " closed" << std::endl;
   (void)ng_session;
   (void)error_code;
   return 0;
@@ -253,7 +254,7 @@ int session_data::on_begin_headers_callback(nghttp2_session *ng_session,
   }
 
   sess_data->create_stream_data(frame->hd.stream_id);
-  std::cout <<"fn:" << __pretty_function__ <<" stream_id:" << frame->hd.stream_id << " created successfully"
+  std::cout <<"fn:" << __func__ <<" stream_id:" << frame->hd.stream_id << " created successfully"
   <<std::endl;
   /*
   nghttp2_session_set_stream_user_data(session, frame->hd.stream_id,

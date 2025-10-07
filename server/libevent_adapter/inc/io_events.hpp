@@ -1,16 +1,16 @@
-#ifndef __io_adapter_hpp__
-#define __io_adapter_hpp__
+#ifndef __io_events_hpp__
+#define __io_events_hpp__
 
 #include <vector>
 #include <memory>
+
+#include "evt_adapter.hpp"
+#include "app_interface.hpp"
 
 extern "C" {
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 }
-
-#include "evt_adapter.hpp"
-#include "app_interface.hpp"
 
 class io_evt {
   struct custom_deleter {
@@ -25,7 +25,7 @@ class io_evt {
       m_buffer_evt_p(bufferevent_socket_new(m_evt_base.get(), handle, BEV_OPT_CLOSE_ON_FREE)),
       m_from_host(peer_host),
       m_app_interface(std::move(app_intf)) {
-      app_interface()->handle_new_connection(handle, m_from_host,
+      get_app_interface()->handle_new_connection(handle, m_from_host,
                                             m_evt_base.get(), m_buffer_evt_p.get());
      
     }
@@ -35,7 +35,7 @@ class io_evt {
     }
 
     virtual ~io_evt() = default;
-    auto& app_interface() const {return m_app_interface;}
+    std::unique_ptr<app_interface>& get_app_interface() {return m_app_interface;}
     // returning managed object of unique_ptr
     struct bufferevent* get_bufferevt() const {return m_buffer_evt_p.get();}
 

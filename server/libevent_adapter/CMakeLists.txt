@@ -14,6 +14,7 @@ find_package(GTest REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -Wall -Wextra")
 
 include_directories(inc)
+include_directories(../nghttp2_adapter/inc)
 add_subdirectory(test)
 
 #all files from src directory, the file(GLOB...) allows for wildcard additions:

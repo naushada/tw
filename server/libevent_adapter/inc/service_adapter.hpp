@@ -1,6 +1,7 @@
 #ifndef __service_adapter_hpp__
 #define __service_adapter_hpp__
 
+#include <iostream>
 #include <vector>
 #include <unordered_map>
 #include <memory>
@@ -9,6 +10,9 @@
 #include "evt_adapter.hpp"
 #include "app_interface.hpp"
 
+// for nghttp2 interface
+#include "session.hpp"
+
 extern "C" {
 #include <event2/listener.h>
 #include <arpa/inet.h>
@@ -16,7 +20,7 @@ extern "C" {
 
 template <typename T>
 class server_service {
-  struct evconn_deleter {
+  struct custom_deleter {
     void operator()(struct evconnlistener* listener) {evconnlistener_free(listener);}
   };
 
@@ -77,13 +81,13 @@ class server_service {
       struct evbuffer *input = bufferevent_get_input(bev);
       evutil_socket_t handle = bufferevent_getfd(bev);
       size_t nbytes = evbuffer_get_length(input);
-      std::vector<std::uint8_t> buffer(nbytes);
       // get the contiguous block of data in oneshot
       std::string data_str(reinterpret_cast<char *>(evbuffer_pullup(input, -1)), nbytes);
       std::cout << "handle:" << handle << " nbytes:"<<nbytes << "\n" << data_str << std::endl;
       auto conn_handler_it = instance->connected_client().find(handle);
       if(conn_handler_it != instance->connected_client().end()) {
-        conn_handler_it->second->get_io_operation()->handle_read(handle, data_str);
+        // dispatch receive data to app_interface to process it.
+        conn_handler_it->second->get_app_interface()->handle_read(handle, data_str);
       }
     }
     
@@ -106,11 +110,11 @@ class server_service {
       evutil_socket_t handle = bufferevent_getfd(bev);
       auto conn_handler_it = instance->connected_client().find(handle);
       if(conn_handler_it != instance->connected_client().end()) {
-        conn_handler_it->second->get_io_operation()->handle_event(events);
+        conn_handler_it->second->get_app_interface()->handle_event(events);
       }
 
       if(events & BEV_EVENT_ERROR) {
-        perror("Error from bufferevent");
+        std::cout <<"fn:" <<__func__ << " Error for handle:" << handle << " from bufferevent" << std::endl;
       }
       if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
         instance->connected_client().erase(handle); 
@@ -123,7 +127,7 @@ class server_service {
   private:
 
     const evt_base& m_evt_base;
-    std::unique_ptr<struct evconnlistener, evconn_deleter> m_evconn_listener_p;
+    std::unique_ptr<struct evconnlistener, custom_deleter> m_evconn_listener_p;
     std::unique_ptr<T> m_app_interface;
     struct sockaddr_in m_listener_addr;
     std::unordered_map<std::int32_t, std::unique_ptr<io_evt>> m_connected_client;

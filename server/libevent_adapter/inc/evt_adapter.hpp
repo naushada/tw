@@ -14,7 +14,7 @@ extern "C" {
 }
 
 class evt_base {
-  struct evtDeleter {
+  struct custom_deleter {
     void operator()(struct event_base* evt) {event_base_free(evt);}
   };
 
@@ -45,7 +45,7 @@ class evt_base {
 
   private:
 
-    std::unique_ptr<struct event_base, evt_base::evtDeleter> m_event_base_p; 
+    std::unique_ptr<struct event_base, evt_base::custom_deleter> m_event_base_p; 
 };
 
 class evt {
