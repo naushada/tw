@@ -5,6 +5,7 @@
 #include <string>
 #include <cstring>
 #include <algorithm>
+#include <iostream>
 
 #include "app_interface.hpp"
 
@@ -123,7 +124,7 @@ class session_data : public app_interface {
     }
 
     std::int32_t init() {
-      nghttp2_session_callbacks_set_send_callback2(m_callbacks_p.get(), send_callback);
+      nghttp2_session_callbacks_set_send_callback(m_callbacks_p.get(), send_callback);
       nghttp2_session_callbacks_set_on_frame_recv_callback(m_callbacks_p.get(), on_frame_recv_callback);
       nghttp2_session_callbacks_set_on_stream_close_callback(m_callbacks_p.get(), on_stream_close_callback);
       nghttp2_session_callbacks_set_on_header_callback(m_callbacks_p.get(), on_header_callback);
@@ -151,7 +152,7 @@ class session_data : public app_interface {
     std::int32_t on_request_recv(std::int32_t stream_id);
 
     // interface callbacks to nghttp2 library  
-    static nghttp2_ssize send_callback(nghttp2_session *session,
+    static std::int64_t send_callback(nghttp2_session *session,
                            const uint8_t *data, size_t length,
                            int flags, void *user_data);
 
