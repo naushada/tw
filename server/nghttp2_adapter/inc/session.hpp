@@ -11,7 +11,16 @@
 
 extern "C" {
 #include <nghttp2/nghttp2.h>
+#include <nghttp2/nghttp2ver.h>
 }
+
+#define ARRLEN(x) (sizeof(x) / sizeof(x[0]))
+
+#define MAKE_NV(NAME, VALUE)                                                   \
+  {                                                                            \
+    (uint8_t *)NAME,   (uint8_t *)VALUE,     sizeof(NAME) - 1,                 \
+    sizeof(VALUE) - 1, NGHTTP2_NV_FLAG_NONE,                                   \
+  }
 
 // per http2 connection data
 class session_data : public app_interface {
@@ -124,15 +133,214 @@ class session_data : public app_interface {
     }
 
     std::int32_t init() {
-      nghttp2_session_callbacks_set_send_callback(m_callbacks_p.get(), send_callback);
+      // nghttp2 library will invoke send_callback2 to send http2 DATA or HEADERS frame
+      nghttp2_session_callbacks_set_send_callback(m_callbacks_p.get(), send_callback2);
+      /**
+       * @functypedef
+       *
+       * Callback function invoked by `nghttp2_session_recv()` and
+       * `nghttp2_session_mem_recv2()` when a frame is received.  The
+       * |user_data| pointer is the third argument passed in to the call to
+       * `nghttp2_session_client_new()` or `nghttp2_session_server_new()`.
+       *
+       * If frame is HEADERS or PUSH_PROMISE, the ``nva`` and ``nvlen``
+       * member of their data structure are always ``NULL`` and 0
+       * respectively.  The header name/value pairs are emitted via
+       * :type:`nghttp2_on_header_callback`.
+       *
+       * Only HEADERS and DATA frame can signal the end of incoming data.
+       * If ``frame->hd.flags & NGHTTP2_FLAG_END_STREAM`` is nonzero, the
+       * |frame| is the last frame from the remote peer in this stream.
+       *
+       * This callback won't be called for CONTINUATION frames.
+       * HEADERS/PUSH_PROMISE + CONTINUATIONs are treated as single frame.
+       *
+       * The implementation of this function must return 0 if it succeeds.
+       * If nonzero value is returned, it is treated as fatal error and
+       * `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+       * functions immediately return
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
+       *
+       * To set this callback to :type:`nghttp2_session_callbacks`, use
+       * `nghttp2_session_callbacks_set_on_frame_recv_callback()`.
+      */ 
       nghttp2_session_callbacks_set_on_frame_recv_callback(m_callbacks_p.get(), on_frame_recv_callback);
+      /**
+       * @functypedef
+       *
+       * Callback function invoked when the stream |stream_id| is closed.
+       * The reason of closure is indicated by the |error_code|.  The
+       * |error_code| is usually one of :enum:`nghttp2_error_code`, but that
+       * is not guaranteed.  The stream_user_data, which was specified in
+       * `nghttp2_submit_request2()` or `nghttp2_submit_headers()`, is still
+       * available in this function.  The |user_data| pointer is the third
+       * argument passed in to the call to `nghttp2_session_client_new()` or
+       * `nghttp2_session_server_new()`.
+       *
+       * This function is also called for a stream in reserved state.
+       *
+       * The implementation of this function must return 0 if it succeeds.
+       * If nonzero is returned, it is treated as fatal error and
+       * `nghttp2_session_recv()`, `nghttp2_session_mem_recv2()`,
+       * `nghttp2_session_send()`, and `nghttp2_session_mem_send2()`
+       * functions immediately return
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
+       *
+       * To set this callback to :type:`nghttp2_session_callbacks`, use
+       * `nghttp2_session_callbacks_set_on_stream_close_callback()`.
+      */ 
       nghttp2_session_callbacks_set_on_stream_close_callback(m_callbacks_p.get(), on_stream_close_callback);
+      /**
+       * @functypedef
+       *
+       * Callback function invoked when a header name/value pair is received
+       * for the |frame|.  The |name| of length |namelen| is header name.
+       * The |value| of length |valuelen| is header value.  The |flags| is
+       * bitwise OR of one or more of :type:`nghttp2_nv_flag`.
+       *
+       * If :enum:`nghttp2_nv_flag.NGHTTP2_NV_FLAG_NO_INDEX` is set in
+       * |flags|, the receiver must not index this name/value pair when
+       * forwarding it to the next hop.  More specifically, "Literal Header
+       * Field never Indexed" representation must be used in HPACK encoding.
+       *
+       * When this callback is invoked, ``frame->hd.type`` is either
+       * :enum:`nghttp2_frame_type.NGHTTP2_HEADERS` or
+       * :enum:`nghttp2_frame_type.NGHTTP2_PUSH_PROMISE`.  After all header
+       * name/value pairs are processed with this callback, and no error has
+       * been detected, :type:`nghttp2_on_frame_recv_callback` will be
+       * invoked.  If there is an error in decompression,
+       * :type:`nghttp2_on_frame_recv_callback` for the |frame| will not be
+       * invoked.
+       *
+       * Both |name| and |value| are guaranteed to be NULL-terminated.  The
+       * |namelen| and |valuelen| do not include terminal NULL.  If
+       * `nghttp2_option_set_no_http_messaging()` is used with nonzero
+       * value, NULL character may be included in |name| or |value| before
+       * terminating NULL.
+       *
+       * Please note that unless `nghttp2_option_set_no_http_messaging()` is
+       * used, nghttp2 library does perform validation against the |name|
+       * and the |value| using `nghttp2_check_header_name()` and
+       * `nghttp2_check_header_value()`.  In addition to this, nghttp2
+       * performs validation based on HTTP Messaging rule, which is briefly
+       * explained in :ref:`http-messaging` section.
+       *
+       * If the application uses `nghttp2_session_mem_recv2()`, it can
+       * return :enum:`nghttp2_error.NGHTTP2_ERR_PAUSE` to make
+       * `nghttp2_session_mem_recv2()` return without processing further
+       * input bytes.  The memory pointed by |frame|, |name| and |value|
+       * parameters are retained until `nghttp2_session_mem_recv2()` or
+       * `nghttp2_session_recv()` is called.  The application must retain
+       * the input bytes which was used to produce these parameters, because
+       * it may refer to the memory region included in the input bytes.
+       *
+       * Returning
+       * :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE` will
+       * close the stream (promised stream if frame is PUSH_PROMISE) by
+       * issuing RST_STREAM with
+       * :enum:`nghttp2_error_code.NGHTTP2_INTERNAL_ERROR`.  In this case,
+       * :type:`nghttp2_on_header_callback` and
+       * :type:`nghttp2_on_frame_recv_callback` will not be invoked.  If a
+       * different error code is desirable, use
+       * `nghttp2_submit_rst_stream()` with a desired error code and then
+       * return :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE`.
+       * Again, use ``frame->push_promise.promised_stream_id`` as stream_id
+       * parameter in `nghttp2_submit_rst_stream()` if frame is
+       * PUSH_PROMISE.
+       *
+       * The implementation of this function must return 0 if it succeeds.
+       * It may return :enum:`nghttp2_error.NGHTTP2_ERR_PAUSE` or
+       * :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE`.  For
+       * other critical failures, it must return
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If the other
+       * nonzero value is returned, it is treated as
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` is returned,
+       * `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+       * functions immediately return
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
+       *
+       * To set this callback to :type:`nghttp2_session_callbacks`, use
+       * `nghttp2_session_callbacks_set_on_header_callback()`.
+       *
+       * .. warning::
+       *
+       *   Application should properly limit the total buffer size to store
+       *   incoming header fields.  Without it, peer may send large number
+       *   of header fields or large header fields to cause out of memory in
+       *   local endpoint.  Due to how HPACK works, peer can do this
+       *   effectively without using much memory on their own.
+      */ 
       nghttp2_session_callbacks_set_on_header_callback(m_callbacks_p.get(), on_header_callback);
+      /**
+       * @functypedef
+       *
+       * Callback function invoked when the reception of header block in
+       * HEADERS or PUSH_PROMISE is started.  Each header name/value pair
+       * will be emitted by :type:`nghttp2_on_header_callback`.
+       *
+       * The ``frame->hd.flags`` may not have
+       * :enum:`nghttp2_flag.NGHTTP2_FLAG_END_HEADERS` flag set, which
+       * indicates that one or more CONTINUATION frames are involved.  But
+       * the application does not need to care about that because the header
+       * name/value pairs are emitted transparently regardless of
+       * CONTINUATION frames.
+       *
+       * The server applications probably create an object to store
+       * information about new stream if ``frame->hd.type ==
+       * NGHTTP2_HEADERS`` and ``frame->headers.cat ==
+       * NGHTTP2_HCAT_REQUEST``.  If |session| is configured as server side,
+       * ``frame->headers.cat`` is either ``NGHTTP2_HCAT_REQUEST``
+       * containing request headers or ``NGHTTP2_HCAT_HEADERS`` containing
+       * trailer fields and never get PUSH_PROMISE in this callback.
+       *
+       * For the client applications, ``frame->hd.type`` is either
+       * ``NGHTTP2_HEADERS`` or ``NGHTTP2_PUSH_PROMISE``.  In case of
+       * ``NGHTTP2_HEADERS``, ``frame->headers.cat ==
+       * NGHTTP2_HCAT_RESPONSE`` means that it is the first response
+       * headers, but it may be non-final response which is indicated by 1xx
+       * status code.  In this case, there may be zero or more HEADERS frame
+       * with ``frame->headers.cat == NGHTTP2_HCAT_HEADERS`` which has
+       * non-final response code and finally client gets exactly one HEADERS
+       * frame with ``frame->headers.cat == NGHTTP2_HCAT_HEADERS``
+       * containing final response headers (non-1xx status code).  The
+       * trailer fields also has ``frame->headers.cat ==
+       * NGHTTP2_HCAT_HEADERS`` which does not contain any status code.
+       *
+       * Returning
+       * :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE` will
+       * close the stream (promised stream if frame is PUSH_PROMISE) by
+       * issuing RST_STREAM with
+       * :enum:`nghttp2_error_code.NGHTTP2_INTERNAL_ERROR`.  In this case,
+       * :type:`nghttp2_on_header_callback` and
+       * :type:`nghttp2_on_frame_recv_callback` will not be invoked.  If a
+       * different error code is desirable, use
+       * `nghttp2_submit_rst_stream()` with a desired error code and then
+       * return :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE`.
+       * Again, use ``frame->push_promise.promised_stream_id`` as stream_id
+       * parameter in `nghttp2_submit_rst_stream()` if frame is
+       * PUSH_PROMISE.
+       *
+       * The implementation of this function must return 0 if it succeeds.
+       * It can return
+       * :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE` to
+       * reset the stream (promised stream if frame is PUSH_PROMISE).  For
+       * critical errors, it must return
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If the other
+       * value is returned, it is treated as if
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` is returned.  If
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` is returned,
+       * `nghttp2_session_mem_recv2()` function will immediately return
+       * :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
+       *
+       * To set this callback to :type:`nghttp2_session_callbacks`, use
+       * `nghttp2_session_callbacks_set_on_begin_headers_callback()`.
+      */ 
       nghttp2_session_callbacks_set_on_begin_headers_callback(m_callbacks_p.get(), on_begin_headers_callback);
 
       nghttp2_session* sess_p = nullptr;
       // creates a session object and copied all provided callbacks into newly created 
-      // session.
+      // session. this pointer is returned to every callback invoked by nghttp2 library.
       std::int32_t rv = nghttp2_session_server_new(&sess_p, m_callbacks_p.get(), this);
 
       if(rv) {
@@ -152,12 +360,12 @@ class session_data : public app_interface {
     std::int32_t on_request_recv(std::int32_t stream_id);
 
     // interface callbacks to nghttp2 library  
-    static std::int64_t send_callback(nghttp2_session *session,
+    static ssize_t send_callback2(nghttp2_session *session,
                            const uint8_t *data, size_t length,
                            int flags, void *user_data);
 
     // on_frame_recv_callback: Invoked once after the entire DATA frame has been completely received
-    static int on_frame_recv_callback(nghttp2_session *session,
+    static std::int32_t on_frame_recv_callback(nghttp2_session *session,
                  const nghttp2_frame *frame, void *user_data);
 
     static int on_stream_close_callback(nghttp2_session *session, int32_t stream_id,

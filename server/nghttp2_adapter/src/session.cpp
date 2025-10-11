@@ -57,7 +57,7 @@ int session_data::handle_read(evutil_socket_t handle, const std::string& in) {
   // m_session_p holds all the registered callback (done in init). This will
   // decode the in.data into http2 frames and calls respective callback to deliver to
   // session_data.
-  readlen = nghttp2_session_mem_recv2(m_session_p.get(), in.data(), in.length());
+  readlen = nghttp2_session_mem_recv(m_session_p.get(), reinterpret_cast<const std::uint8_t *>(in.data()), in.length());
   if(readlen < 0) {
     std::cout << "fn:" << __func__ <<" line:" << __LINE__ << 
                  " Fatal error:" << nghttp2_strerror((std::int32_t)readlen) << std::endl;
@@ -70,10 +70,14 @@ int session_data::handle_read(evutil_socket_t handle, const std::string& in) {
     return -1;
   }
 */
+
+#if 0
   if(session_send(m_session_p.get()) != 0) {
     std::cout <<"line:"<< __LINE__ << " session_send failed" << std::endl;
     return -1;
   }
+#endif
+
   return 0;
 }
 
@@ -90,10 +94,11 @@ void session_data::handle_new_connection(const int& handle, const std::string& a
 void session_data::handle_connection_close(std::int32_t handle) {
 }
 
-std::int64_t session_data::send_callback(nghttp2_session *ng_session,
+ssize_t session_data::send_callback2(nghttp2_session *ng_session,
                                  const uint8_t *data, size_t length,
                                  int flags, void *user_data) {
   session_data *sess_data = static_cast<session_data*>(user_data);
+#if 0
   struct bufferevent *bev = sess_data->get_bufferevent();
   /* Avoid excessive buffering in server side. */
   if(evbuffer_get_length(bufferevent_get_output(bev)) >= OUTPUT_WOULDBLOCK_THRESHOLD) {
@@ -101,10 +106,11 @@ std::int64_t session_data::send_callback(nghttp2_session *ng_session,
   }
 
   bufferevent_write(bev, data, length);
-  return static_cast<nghttp2_ssize>(length);
+#endif
+  return(length);
 }
 
-int session_data::on_frame_recv_callback(nghttp2_session *ng_session,
+std::int32_t session_data::on_frame_recv_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, 
                        void *user_data) {
   session_data *sess_data = static_cast<session_data*>(user_data);
@@ -179,7 +185,7 @@ std::int32_t session_data::on_request_recv(std::int32_t stream_id) {
     return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
 #endif
-  if(send_response(m_session_p.get(), strm_data.stream_id(), hdrs, ARRLEN(hdrs), fd) != 0) {
+  if(/*send_response(m_session_p.get(), strm_data.stream_id(), hdrs, ARRLEN(hdrs), fd) != 0*/1) {
     std::cout << "fn:" << __func__ <<" line:" << __LINE__ << " unable to send response" <<
                  " for stream-id:" << strm_data.stream_id() << std::endl;
     return NGHTTP2_ERR_CALLBACK_FAILURE;
@@ -227,10 +233,10 @@ int session_data::on_header_callback(nghttp2_session *ng_session,
 
       auto& strm_data = sess_data->get_stream_data(frame->hd.stream_id);
       if(name_str.length() == PATH.length() && PATH == name_str) {
-        auto end = value_str.find('?');
-        if(end != std::string::npos) {
-          auto path = value_str(0, end);
-          strm_data.request_path(percent_decode(path));
+        auto end_pos = value_str.find('?');
+        if(end_pos != std::string::npos) {
+          auto path = value_str.substr(0, end_pos);
+          strm_data.request_path(sess_data->percent_decode(path));
         }
       }
       break;
@@ -263,4 +269,7 @@ int session_data::on_begin_headers_callback(nghttp2_session *ng_session,
   return 0;
 }
 
+int main() {
+  return 0;
+}
 #endif
