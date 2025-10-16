@@ -5,7 +5,8 @@
 #include <sstream>
 #include <vector>
 
-#include "server_app.hpp"
+#include "tcp_server.hpp"
+#include "app_interface.hpp"
 
 class io_operation: public app_interface {
 public:
@@ -52,7 +53,7 @@ class ServerAppTest : public ::testing::Test {
     //std::unique_ptr<evt_base> m_base;
     //std::unique_ptr<evt_loop> m_run;
     evt_loop m_run;
-    std::unique_ptr<server_app<io_operation>> m_svcs_p;
+    std::unique_ptr<tcp_server<io_operation>> m_svcs_p;
 };
 
 #endif /*__evt_adapter_test_hpp__*/

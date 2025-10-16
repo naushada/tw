@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16.3)
-project(rpc_app)
+project(tcp_server)
 find_package(PkgConfig REQUIRED)
 
 # Use pkg-config to find libevent and set variables
@@ -17,13 +17,13 @@ include_directories(inc)
 include_directories(../middleware/inc)
 
 #all files from src directory, the file(GLOB...) allows for wildcard additions:
-file(GLOB SOURCES "src/*.cpp")
+#file(GLOB SOURCES "inc/*.hpp")
 
-add_library(server_app ${SOURCES})
-target_link_libraries(server_app pthread ssl crypto ${LIBEVENT_LIBRARIES})
-target_include_directories(server_app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+#add_library(tcp_server ${SOURCES})
+#target_link_libraries(tcp_server pthread ssl crypto ${LIBEVENT_LIBRARIES})
+#target_include_directories(tcp_server PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-#add_subdirectory(test)
+add_subdirectory(test)
 #target_include_directories(server_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 #set_target_properties(server_app PROPERTIES
@@ -31,7 +31,7 @@ target_include_directories(server_app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 #        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/include/libserver_app"
 #    )
 
-install(TARGETS server_app
-        CONFIGURATIONS Release
-        RUNTIME DESTINATION /usr/local/lib
-)
+#install(TARGETS tcp_server
+#        CONFIGURATIONS Release
+#        RUNTIME DESTINATION /usr/local/lib
+#)

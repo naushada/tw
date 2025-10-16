@@ -1,9 +1,50 @@
-#ifndef __server_app_cpp__
-#define __server_app_cpp__
+#ifndef __tcp_server_hpp__
+#define __tcp_server_hpp__
 
-#include "server_app.hpp"
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+#include <memory>
+
+#include "evt_adapter.hpp"
+#include "app_interface.hpp"
+
+extern "C" {
+  #include <event2/listener.h>
+  #include <arpa/inet.h>
+}
+
 template <typename T>
-server_app<T>::server_app(const std::string& host, const std::uint32_t& port) : 
+class tcp_server {
+  struct custom_deleter {
+    void operator()(struct evconnlistener* listener) {evconnlistener_free(listener);}
+  };
+
+  public:
+    tcp_server(const std::string& host, const std::uint32_t& port);
+    auto& connected_client() { return m_connected_client;}
+   
+    // This is a callback invoked by libevent when a client is connected 
+    static void accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
+                                   struct sockaddr *sa, int socklen, void *ctx);
+    static void read_cb(struct bufferevent *bev, void *ctx);
+    std::int32_t tx(evutil_socket_t handle, const char* buffer, const size_t& nbytes);
+    static void write_cb(struct bufferevent *bev, void *ctx);
+    static void event_cb(struct bufferevent *bev, short events, void *ctx);
+    const evt_base& get_event_base() const {return *m_evt_base_p;}
+    auto create_app_interface() const {return std::make_unique<T>();}
+
+  private:
+    std::unique_ptr<evt_base> m_evt_base_p;
+    std::unique_ptr<struct evconnlistener, custom_deleter> m_evconn_listener_p;
+    std::unique_ptr<T> m_app_interface;
+    struct sockaddr_in m_listener_addr;
+    std::unordered_map<std::int32_t, std::unique_ptr<evt_io>> m_connected_client;
+};
+
+
+template <typename T>
+tcp_server<T>::tcp_server(const std::string& host, const std::uint32_t& port) : 
   m_evt_base_p(std::make_unique<evt_base>()),
   m_evconn_listener_p(nullptr),
   m_app_interface(nullptr),
@@ -28,9 +69,9 @@ server_app<T>::server_app(const std::string& host, const std::uint32_t& port) :
 
 
 template <typename T>
-void server_app<T>::accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
+void tcp_server<T>::accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
                                     struct sockaddr *sa, int socklen, void *ctx) {
-  auto instance = static_cast<server_app*>(ctx);
+  auto instance = static_cast<tcp_server*>(ctx);
   auto events = EV_READ|EV_WRITE;
                                        
   auto conn_handler_p = std::make_unique<evt_io>(instance->get_event_base(),
@@ -51,8 +92,8 @@ void server_app<T>::accept_new_conn_cb(struct evconnlistener *listener, evutil_s
 }
 
 template <typename T>
-void server_app<T>::read_cb(struct bufferevent *bev, void *ctx) {
-  auto instance = static_cast<server_app*>(ctx);
+void tcp_server<T>::read_cb(struct bufferevent *bev, void *ctx) {
+  auto instance = static_cast<tcp_server*>(ctx);
   struct evbuffer *input = bufferevent_get_input(bev);
   evutil_socket_t handle = bufferevent_getfd(bev);
   size_t nbytes = evbuffer_get_length(input);
@@ -67,7 +108,7 @@ void server_app<T>::read_cb(struct bufferevent *bev, void *ctx) {
 }
     
 template <typename T>
-std::int32_t server_app<T>::tx(evutil_socket_t handle, const char* buffer, const size_t& nbytes) {
+std::int32_t tcp_server<T>::tx(evutil_socket_t handle, const char* buffer, const size_t& nbytes) {
   auto conn_handler_it = connected_client().find(handle);
   if(conn_handler_it != connected_client().end()) {
     conn_handler_it->second->get_io_operation()->tx(buffer, nbytes);
@@ -78,8 +119,8 @@ std::int32_t server_app<T>::tx(evutil_socket_t handle, const char* buffer, const
 }
 
 template <typename T>
-void server_app<T>::event_cb(struct bufferevent *bev, short events, void *ctx) {
-  auto instance = static_cast<server_app*>(ctx);
+void tcp_server<T>::event_cb(struct bufferevent *bev, short events, void *ctx) {
+  auto instance = static_cast<tcp_server*>(ctx);
   evutil_socket_t handle = bufferevent_getfd(bev);
   auto conn_handler_it = instance->connected_client().find(handle);
   if(conn_handler_it != instance->connected_client().end()) {
@@ -96,8 +137,11 @@ void server_app<T>::event_cb(struct bufferevent *bev, short events, void *ctx) {
 }
 
 template <typename T>
-void server_app<T>::write_cb(struct bufferevent *bev, void *ctx) {
+void tcp_server<T>::write_cb(struct bufferevent *bev, void *ctx) {
   // Handle write completion if needed
 }
+
+
+
 
 #endif

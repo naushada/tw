@@ -38,8 +38,7 @@ add_executable(remote_app_test ${SOURCES})
 #target_link_directories(remote_app_test PRIVATE "${CMAKE_SOURCE_DIR}/libserver_app")
 
 target_link_libraries(remote_app_test
-    PRIVATE
-        server_app
+    PUBLIC
         GTest::Main
         ${LIBEVENT_LIBRARIES}
         Threads::Threads

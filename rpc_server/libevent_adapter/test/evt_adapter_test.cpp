@@ -9,7 +9,7 @@
 ServerAppTest::ServerAppTest():
   //m_base(std::make_unique<evt_base>()),
   //m_run(std::make_unique<evt_loop>()),
-  m_svcs_p(std::make_unique<server_app<io_operation>>("127.0.0.1", 8989)) {
+  m_svcs_p(std::make_unique<tcp_server<io_operation>>("127.0.0.1", 8989)) {
   //m_svcs_p = std::make_shared<rw_operation>(m_base, "0.0.0.0", 8080);
 }
 

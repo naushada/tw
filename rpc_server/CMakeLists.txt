@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16.3)
+cake_minimum_required(VERSION 3.16.3)
 project(remote_app)
 find_package(PkgConfig REQUIRED)
 
