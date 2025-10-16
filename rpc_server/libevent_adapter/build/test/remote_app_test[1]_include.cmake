@@ -1,5 +1,0 @@
-if(EXISTS "/home/mnahmed/tw/rpc_server/libevent_adapter/build/test/remote_app_test[1]_tests.cmake")
-  include("/home/mnahmed/tw/rpc_server/libevent_adapter/build/test/remote_app_test[1]_tests.cmake")
-else()
-  add_test(remote_app_test_NOT_BUILT remote_app_test_NOT_BUILT)
-endif()

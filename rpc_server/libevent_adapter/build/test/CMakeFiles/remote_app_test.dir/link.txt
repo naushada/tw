@@ -1,1 +1,0 @@
-/usr/bin/c++   -std=c++17 -g -Wall -Wextra -std=c++2a -g -Wall -Wextra   CMakeFiles/remote_app_test.dir/evt_adapter_test.cpp.o CMakeFiles/remote_app_test.dir/main.cpp.o  -o remote_app_test  ../libserver_app.a -levent -lpthread -lssl -lcrypto -levent /usr/local/lib/libgtest_main.a /usr/local/lib/libgtest.a -lpthread 
