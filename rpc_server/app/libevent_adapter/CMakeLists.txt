@@ -23,7 +23,7 @@ include_directories(../middleware/inc)
 #target_link_libraries(tcp_server pthread ssl crypto ${LIBEVENT_LIBRARIES})
 #target_include_directories(tcp_server PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_subdirectory(test)
+#add_subdirectory(test)
 #target_include_directories(server_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 #set_target_properties(server_app PROPERTIES

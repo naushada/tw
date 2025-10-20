@@ -1,13 +1,12 @@
-#ifndef __session_hpp__
-#define __session_hpp__
+#ifndef __http2_handler_hpp__
+#define __http2_handler_hpp__
 
 #include <cctype>
 #include <string>
 #include <cstring>
 #include <algorithm>
 #include <iostream>
-
-#include "app_interface.hpp"
+#include <memory>
 
 extern "C" {
 #include <nghttp2/nghttp2.h>
@@ -23,14 +22,14 @@ extern "C" {
   }
 
 // per http2 connection data
-class session_data : public app_interface {
+class http2_handler {
   struct custom_deleter {
     void operator()(nghttp2_session_callbacks *callbacks) {
       nghttp2_session_callbacks_del(callbacks);
     }
 
-    void operator()(nghttp2_session *sess_p) {
-      nghttp2_session_del(sess_p);
+    void operator()(nghttp2_session *ctx_p) {
+      nghttp2_session_del(ctx_p);
     }
   };
 
@@ -53,13 +52,14 @@ class session_data : public app_interface {
       void fd(std::int32_t& handle) {m_fd = handle;}
     };
 
-    // Member Function
-    session_data() : m_callbacks_p(nullptr),
-      m_session_p(nullptr) {
+    // ctor
+    http2_handler() : m_callbacks_p(nullptr),
+      m_ctx_p(nullptr) {
       nghttp2_session_callbacks* callbacks_p = nullptr;
       int rv = nghttp2_session_callbacks_new(&callbacks_p);
       if(!rv) {
         m_callbacks_p.reset(callbacks_p);
+        this->init();
       }
     }
 
@@ -74,6 +74,9 @@ class session_data : public app_interface {
       
       return(it != m_stream_data.end());
     }
+
+    void handle_new_connection(const int& handle, const std::string& addr);
+    void handle_connection_close(std::int32_t handle);
 
     void delete_stream_data(std::int32_t stream_id) {
       auto new_end = std::remove_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {
@@ -346,18 +349,18 @@ class session_data : public app_interface {
       if(rv) {
         return(rv);
       }
-      m_session_p.reset(sess_p);
+      m_ctx_p.reset(sess_p);
       // we are done with m_callbacks_p now,
       m_callbacks_p.reset(nullptr);
     }
  
-    struct event_base* get_evtbase() const {return m_evt_base_p;}
-    struct bufferevent* get_bufferevent() const {return m_buffer_evt_p;}
-    nghttp2_session* get_nghttp2_session() const {return m_session_p.get();}
+    nghttp2_session* get_nghttp2_session() const {return m_ctx_p.get();}
     const std::string& client_addr() const {return m_client_addr;}
     const std::int32_t& handle() const {return m_handle;}
 
     std::int32_t on_request_recv(std::int32_t stream_id);
+   
+    std::int32_t process_request_from_app(const std::int32_t& handle, const std::string& in_data);
 
     // interface callbacks to nghttp2 library  
     static ssize_t send_callback2(nghttp2_session *session,
@@ -381,20 +384,9 @@ class session_data : public app_interface {
     static int on_begin_headers_callback(nghttp2_session *session,
                  const nghttp2_frame *frame,
                  void *user_data);
-    
-    // Hook method for libevent_adapter is interfacing with below function to nghttp2_adapter    
-    virtual int handle_event(const short event) override;
-    virtual int handle_read(evutil_socket_t handle, const std::string& in) override;
-    virtual void handle_new_connection(const int& handle, const std::string& addr,
-                   struct event_base* evbase_p,
-                   struct bufferevent* bevt_p) override;
-    virtual void handle_connection_close(int handle) override;
-
   private:
     std::unique_ptr<nghttp2_session_callbacks, custom_deleter> m_callbacks_p;
-    std::unique_ptr<nghttp2_session , custom_deleter> m_session_p;
-    struct event_base *m_evt_base_p;
-    struct bufferevent *m_buffer_evt_p;
+    std::unique_ptr<nghttp2_session , custom_deleter> m_ctx_p;
     std::vector<stream_data> m_stream_data;
     std::string m_client_addr;
     std::int32_t m_handle;

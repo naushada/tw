@@ -1,5 +1,5 @@
-cake_minimum_required(VERSION 3.16.3)
-project(remote_app)
+cmake_minimum_required(VERSION 3.16.3)
+project(app)
 find_package(PkgConfig REQUIRED)
 
 # Use pkg-config to find libevent and set variables
@@ -23,6 +23,5 @@ if(NOT NGHTTP2_LIBRARY OR NOT NGHTTP2_INCLUDE_DIR)
     message(FATAL_ERROR "Could not find nghttp2 library or headers. Please check installation.")
 endif()
 
-add_subdirectory(libevent_adapter)
-add_subdirectory(nghttp2_adapter)
+add_subdirectory(app)
 

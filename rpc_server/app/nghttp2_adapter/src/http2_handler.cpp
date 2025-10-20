@@ -1,10 +1,11 @@
-#ifndef __session_cpp__
-#define __session_cpp__
+#ifndef __http2_handler_cpp__
+#define __http2_handler_cpp__
 
-#include "session.hpp"
+#include "http2_handler.hpp"
 
+#if 0
 // virtual methods for io_operations
-int session_data::handle_event(const short events) {
+int http2_handler::handle_event(const short events) {
   std::cout << "fn:" << __func__ << " the event:" << events << " is" << std::endl;
   if(events & BEV_EVENT_CONNECTED) {
     std::cout << "fn:" << __func__ << " peer is connected" << std::endl;
@@ -13,23 +14,23 @@ int session_data::handle_event(const short events) {
     //unsigned int alpnlen = 0;
     //SSL *ssl;
 
-    fprintf(stderr, "%s connected\n", session_data->client_addr);
+    fprintf(stderr, "%s connected\n", http2_handler->client_addr);
 
-    ssl = bufferevent_openssl_get_ssl(session_data->bev);
+    ssl = bufferevent_openssl_get_ssl(http2_handler->bev);
 
     SSL_get0_alpn_selected(ssl, &alpn, &alpnlen);
 
     if (alpn == NULL || alpnlen != 2 || memcmp("h2", alpn, 2) != 0) {
-      fprintf(stderr, "%s h2 is not negotiated\n", session_data->client_addr);
-      delete_http2_session_data(session_data);
+      fprintf(stderr, "%s h2 is not negotiated\n", http2_handler->client_addr);
+      delete_http2_http2_handler(http2_handler);
       return;
     }
 
-    initialize_nghttp2_session(session_data);
+    initialize_nghttp2_session(http2_handler);
 
-    if(send_server_connection_header(session_data) != 0 ||
-        session_send(session_data) != 0) {
-      delete_http2_session_data(session_data);
+    if(send_server_connection_header(http2_handler) != 0 ||
+        session_send(http2_handler) != 0) {
+      delete_http2_http2_handler(http2_handler);
       return;
     }
 
@@ -47,17 +48,18 @@ int session_data::handle_event(const short events) {
     std::cout << "fn:" << __func__<<" peer:"<< client_addr() << 
                  " for handle:" << handle() << " event timed out"<<std::endl;
   }
-  //delete_http2_session_data(session_data);
+  //delete_http2_http2_handler(http2_handler);
   return 0;
 }
+#endif
 
-int session_data::handle_read(evutil_socket_t handle, const std::string& in) {
+int http2_handler::process_request_from_app(const std::int32_t& handle, const std::string& in) {
   std::int64_t readlen;
 
-  // m_session_p holds all the registered callback (done in init). This will
+  // m_ctx_p holds all the registered callback (done in init). This will
   // decode the in.data into http2 frames and calls respective callback to deliver to
-  // session_data.
-  readlen = nghttp2_session_mem_recv(m_session_p.get(), reinterpret_cast<const std::uint8_t *>(in.data()), in.length());
+  // http2_handler.
+  readlen = nghttp2_session_mem_recv(m_ctx_p.get(), reinterpret_cast<const std::uint8_t *>(in.data()), in.length());
   if(readlen < 0) {
     std::cout << "fn:" << __func__ <<" line:" << __LINE__ << 
                  " Fatal error:" << nghttp2_strerror((std::int32_t)readlen) << std::endl;
@@ -82,22 +84,18 @@ int session_data::handle_read(evutil_socket_t handle, const std::string& in) {
 }
 
 // new client is connected to this server
-void session_data::handle_new_connection(const int& handle, const std::string& addr,
-                        struct event_base* evbase_p,
-                        struct bufferevent* bevt_p) {
+void http2_handler::handle_new_connection(const int& handle, const std::string& addr) {
   m_handle = handle;
   m_client_addr = addr;
-  m_evt_base_p = evbase_p;
-  m_buffer_evt_p = bevt_p;
 }
 
-void session_data::handle_connection_close(std::int32_t handle) {
+void http2_handler::handle_connection_close(std::int32_t handle) {
 }
 
-ssize_t session_data::send_callback2(nghttp2_session *ng_session,
+ssize_t http2_handler::send_callback2(nghttp2_session *ng_session,
                                  const uint8_t *data, size_t length,
                                  int flags, void *user_data) {
-  session_data *sess_data = static_cast<session_data*>(user_data);
+  http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
 #if 0
   struct bufferevent *bev = sess_data->get_bufferevent();
   /* Avoid excessive buffering in server side. */
@@ -107,27 +105,27 @@ ssize_t session_data::send_callback2(nghttp2_session *ng_session,
 
   bufferevent_write(bev, data, length);
 #endif
-  tx(handle(), data, length);
+  //tx(handle(), data, length);
   return(length);
 }
 
-std::int32_t session_data::on_frame_recv_callback(nghttp2_session *ng_session,
+std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, 
                        void *user_data) {
-  session_data *sess_data = static_cast<session_data*>(user_data);
+  http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
   switch(frame->hd.type) {
     case NGHTTP2_DATA:
     case NGHTTP2_HEADERS:
       /* Check that the client request has finished */
       if(frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
-        if(!sess_data->is_stream_data_found(frame->hd.stream_id)) {
+        if(!ctx_p->is_stream_data_found(frame->hd.stream_id)) {
           return 0;
         }
 
         /* For DATA and HEADERS frame, this callback may be called after
            on_stream_close_callback. Check that stream still alive. */
-        auto& stream_data = sess_data->get_stream_data(frame->hd.stream_id);
-        return sess_data->on_request_recv(frame->hd.stream_id);
+        auto& stream_data = ctx_p->get_stream_data(frame->hd.stream_id);
+        return ctx_p->on_request_recv(frame->hd.stream_id);
       }
       break;
     default:
@@ -136,7 +134,7 @@ std::int32_t session_data::on_frame_recv_callback(nghttp2_session *ng_session,
   return 0;
 }
 
-std::int32_t session_data::on_request_recv(std::int32_t stream_id) {
+std::int32_t http2_handler::on_request_recv(std::int32_t stream_id) {
   //int fd;
   std::vector<nghttp2_nv> hdrs = {
     {MAKE_NV(":status", "200")}
@@ -194,25 +192,25 @@ std::int32_t session_data::on_request_recv(std::int32_t stream_id) {
   return 0;
 }
 
-int session_data::on_stream_close_callback(nghttp2_session *ng_session,
+int http2_handler::on_stream_close_callback(nghttp2_session *ng_session,
                        std::int32_t stream_id,
                        std::uint32_t error_code,
                        void *user_data) {
-  session_data *sess_data = static_cast<session_data*>(user_data);
-  sess_data->delete_stream_data(stream_id);
+  http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
+  ctx_p->delete_stream_data(stream_id);
   std::cout <<"fn:" << __func__ << " dtream_id:"<< stream_id << " closed" << std::endl;
   (void)ng_session;
   (void)error_code;
   return 0;
 }
 
-int session_data::on_header_callback(nghttp2_session *ng_session,
+int http2_handler::on_header_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, const std::uint8_t *name,
                        size_t namelen, const std::uint8_t *value,
                        size_t valuelen, std::uint8_t flags,
                        void *user_data) {
 
-  session_data *sess_data = static_cast<session_data*>(user_data);
+  http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
   std::string PATH(":path");
   std::string name_str(reinterpret_cast<const char*>(name), namelen);
   std::string value_str(reinterpret_cast<const char *>(value), valuelen);
@@ -232,12 +230,12 @@ int session_data::on_header_callback(nghttp2_session *ng_session,
         break;
       }*/
 
-      auto& strm_data = sess_data->get_stream_data(frame->hd.stream_id);
+      auto& strm_data = ctx_p->get_stream_data(frame->hd.stream_id);
       if(name_str.length() == PATH.length() && PATH == name_str) {
         auto end_pos = value_str.find('?');
         if(end_pos != std::string::npos) {
           auto path = value_str.substr(0, end_pos);
-          strm_data.request_path(sess_data->percent_decode(path));
+          strm_data.request_path(ctx_p->percent_decode(path));
         }
       }
       break;
@@ -250,27 +248,24 @@ int session_data::on_header_callback(nghttp2_session *ng_session,
  * TCP connection.
  * */
 
-int session_data::on_begin_headers_callback(nghttp2_session *ng_session,
+int http2_handler::on_begin_headers_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame,
                        void *user_data) {
-  session_data *sess_data = static_cast<session_data *>(user_data);
+  http2_handler *ctx_p = static_cast<http2_handler *>(user_data);
 
   if(frame->hd.type != NGHTTP2_HEADERS ||
     frame->headers.cat != NGHTTP2_HCAT_REQUEST) {
     return 0;
   }
 
-  sess_data->create_stream_data(frame->hd.stream_id);
+  ctx_p->create_stream_data(frame->hd.stream_id);
   std::cout << "fn:" << __func__ <<" stream_id:" << frame->hd.stream_id 
             << " created successfully"<< std::endl;
   /*
   nghttp2_session_set_stream_user_data(session, frame->hd.stream_id,
-    session_data);*/
+    http2_handler);*/
 
   return 0;
 }
 
-int main() {
-  return 0;
-}
 #endif
