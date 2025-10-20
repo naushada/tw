@@ -3,7 +3,6 @@
 
 #include "app_interface.hpp"
 #include "tcp_server.hpp"
-//#include "http2_handler.hpp"
 
 
 int app::handle_event(const short event) {

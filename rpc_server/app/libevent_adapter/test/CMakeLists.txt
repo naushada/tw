@@ -24,8 +24,6 @@ find_package(Threads REQUIRED)
 find_package(GTest REQUIRED)
 
 include_directories(../inc)
-include_directories(../middleware/inc)
-include_directories(../nghttp2_adapter/inc)
 
 #Adding Complier flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++2a -g -Wall -Wextra")
@@ -40,7 +38,7 @@ add_executable(remote_app_test ${SOURCES})
 
 target_link_libraries(remote_app_test
     PUBLIC
-        http2_handler
+        http2_proto
         app_intf
         GTest::Main
         ${LIBEVENT_LIBRARIES}

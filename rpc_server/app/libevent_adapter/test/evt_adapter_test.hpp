@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "tcp_server.hpp"
-#include "app_interface.hpp"
+#include "interface.hpp"
 
 class io_operation: public app_interface {
 public:
@@ -20,14 +20,10 @@ public:
       return(0);
     }
    
-    virtual void handle_new_connection(const int& handle, const std::string& addr,
-                   struct event_base* evbase_p,
-                   struct bufferevent* bevt_p) override {
+    virtual void handle_new_connection(const int& handle, const std::string& addr) override {
       std::cout << "app_interface handle_new_connection This must be overriden in subclass" << std::endl;
       (void) handle;
       (void) addr;
-      (void) evbase_p;
-      (void) bevt_p;
     }
 
     virtual void handle_connection_close(int handle) override {

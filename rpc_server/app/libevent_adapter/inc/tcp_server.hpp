@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "evt_adapter.hpp"
-#include "app_interface.hpp"
+#include "interface.hpp"
 
 extern "C" {
   #include <event2/listener.h>
