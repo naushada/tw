@@ -48,7 +48,7 @@ class ServerAppTest : public ::testing::Test {
   private:
     //std::unique_ptr<evt_base> m_base;
     //std::unique_ptr<evt_loop> m_run;
-    evt_loop m_run;
+    run_evt_loop m_run;
     std::unique_ptr<tcp_server<io_operation>> m_svcs_p;
 };
 

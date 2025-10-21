@@ -9,10 +9,12 @@ find_package(Threads REQUIRED)
 # Find GoogleTest
 find_package(GTest REQUIRED)
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -Wall -Wextra")
 
 include_directories(inc)
-include_directories(../middleware/inc)
+include_directories(middleware/inc)
+include_directories(libevent_adapter/inc)
+include_directories(nghttp2_adapter/inc)
 
 add_subdirectory(libevent_adapter)
 add_subdirectory(nghttp2_adapter)

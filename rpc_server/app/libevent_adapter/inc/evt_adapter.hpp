@@ -86,7 +86,7 @@ class evt_io {
     std::unique_ptr<app_interface> m_app_interface;
 };
 
-struct evt_loop {
+struct run_evt_loop {
   int operator()(const evt_base& base) {event_base_dispatch(base.get()); return 0;}
 };
 
