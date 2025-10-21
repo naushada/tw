@@ -77,6 +77,7 @@ class http2_handler {
 
     void handle_new_connection(const int& handle, const std::string& addr);
     void handle_connection_close(std::int32_t handle);
+    int handle_event(const short evt);
 
     void delete_stream_data(std::int32_t stream_id) {
       auto new_end = std::remove_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {

@@ -6,6 +6,8 @@
 
 
 int app::handle_event(const short event) {
+  std::cout <<"fn:" <<__func__ << ":"<<__LINE__ << " events:" << event << std::endl;
+  get_http2_handler().handle_event(event);
 }
 
 int app::handle_read(std::int32_t handle, const std::string& in) {
@@ -16,6 +18,7 @@ int app::handle_read(std::int32_t handle, const std::string& in) {
 void app::handle_new_connection(const int& handle, const std::string& addr) {
   m_handle = handle;
   m_addr = addr;
+  get_http2_handler().handle_new_connection(handle, addr);
 }
 
 void app::handle_connection_close(int handle) {

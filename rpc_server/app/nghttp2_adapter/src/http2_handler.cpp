@@ -1,7 +1,13 @@
 #ifndef __http2_handler_cpp__
 #define __http2_handler_cpp__
 
+#include <unistd.h>
 #include "http2_handler.hpp"
+
+int http2_handler::handle_event(const short events) {
+  std::cout <<"fn:" << __func__ << ":" <<__LINE__ << " events:" << events << std::endl;
+  return 0;
+}
 
 #if 0
 // virtual methods for io_operations
@@ -79,17 +85,41 @@ int http2_handler::process_request_from_app(const std::int32_t& handle, const st
     return -1;
   }
 #endif
-
-  return 0;
+  int rv;
+  rv = nghttp2_session_send(m_ctx_p.get());
+  if (rv != 0) {
+    std::cout <<"Fatal error:" << nghttp2_strerror(rv) << std::endl;
+    return -1;
+  }
+  return readlen;
 }
 
 // new client is connected to this server
 void http2_handler::handle_new_connection(const int& handle, const std::string& addr) {
   m_handle = handle;
   m_client_addr = addr;
+  std::cout <<"fn:" << __func__ << ":"<< __LINE__ <<" handle:" << m_handle << std::endl;
+#if 0
+  nghttp2_settings_entry iv[1] = {
+      {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100}};
+  int rv;
+
+  rv = nghttp2_submit_settings(m_ctx_p.get(), NGHTTP2_FLAG_NONE, iv,
+                               ARRLEN(iv));
+  if (rv != 0) {
+    std::cout <<"fn:" << __func__ <<":"<< __LINE__ << "Fatal error:" << nghttp2_strerror(rv);
+    //return -1;
+  }
+  rv = nghttp2_session_send(m_ctx_p.get());
+  if (rv != 0) {
+    std::cout <<"Fatal error:" << nghttp2_strerror(rv) << std::endl;
+    //return -1;
+  }
+#endif
 }
 
 void http2_handler::handle_connection_close(std::int32_t handle) {
+  std::cout <<"fn:" << __func__ <<":"<<__LINE__ <<" connection is closed" << std::endl;
 }
 
 ssize_t http2_handler::send_callback2(nghttp2_session *ng_session,
@@ -106,19 +136,25 @@ ssize_t http2_handler::send_callback2(nghttp2_session *ng_session,
   bufferevent_write(bev, data, length);
 #endif
   //tx(handle(), data, length);
-  return(length);
+  auto ret = write(ctx_p->handle(), data, length);
+  std::cout << "fn:"<< __func__ << ":" << __LINE__ << " flags:"<< flags<<" sent a packet of length:" 
+            << ret << " on-handle:"<< ctx_p->handle()<< std::endl;
+  return(ret);
 }
 
 std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, 
                        void *user_data) {
   http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
+  std::cout << "fn:" << __func__ <<":" << __LINE__ << "frame:" << std::to_string(frame->hd.type) << std::endl;
   switch(frame->hd.type) {
     case NGHTTP2_DATA:
     case NGHTTP2_HEADERS:
+      std::cout << "fn:" << __func__ <<":" << __LINE__ << "frame:" << frame->hd.type << std::endl;
       /* Check that the client request has finished */
       if(frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
         if(!ctx_p->is_stream_data_found(frame->hd.stream_id)) {
+          std::cout <<"fn:"<<__func__ <<":" <<__LINE__ <<" stream-id:" << std::to_string(frame->hd.stream_id) << " not found" << std::endl;
           return 0;
         }
 
@@ -215,7 +251,7 @@ int http2_handler::on_header_callback(nghttp2_session *ng_session,
   std::string name_str(reinterpret_cast<const char*>(name), namelen);
   std::string value_str(reinterpret_cast<const char *>(value), valuelen);
 
-  (void)flags;
+  std::cout <<"fn:"<< __func__ << ":" << __LINE__ << " flags:" << flags <<std::endl;
 
   switch(frame->hd.type) {
     case NGHTTP2_HEADERS:
