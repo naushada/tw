@@ -52,6 +52,20 @@ class app_interface {
     }
 
   protected:
+    std::int32_t tx(const std::int32_t& channel, const std::uint8_t* data, size_t len) {
+      
+      /* Avoid excessive buffering in server side. */
+      //if(evbuffer_get_length(bufferevent_get_output(m_buffer_evt_p)) >= OUTPUT_WOULDBLOCK_THRESHOLD) {
+      //  std::cout <<"fn:" << __func__ << ":" << __LINE__ << " tx is going to blocked" << std::endl;
+        //return NGHTTP2_ERR_WOULDBLOCK;
+      //}
+
+      bufferevent_write(m_buffer_evt_p, data, len);
+      std::cout <<"fn:"<<__func__ << ":" << __LINE__ <<" reply of length:" << 
+            len << " sent successfully" << std::endl;
+    }
+
+  private:
     struct event_base *m_evt_base_p;
     struct bufferevent *m_buffer_evt_p;
     std::int32_t m_handle;
