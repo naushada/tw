@@ -9,6 +9,21 @@ int http2_handler::handle_event(const short events) {
   return 0;
 }
 
+std::int32_t http2_handler::send_pending_data_to_peer() {
+  const std::uint8_t *data_p = nullptr;
+  ssize_t len = -1;
+  while((len = nghttp2_session_mem_send(get_nghttp2_session(), &data_p)) > 0) {
+    ssize_t offset = 0;
+    while(offset != len) {
+      auto ret = write(handle(), data_p + offset, len - offset);
+      if(ret < 0) return -1;
+      offset += ret;
+    }
+  }
+
+  std::cout <<"fn:" << __func__ << ":" << __LINE__ << " sent nbytes:" << len << " to peer" << std::endl;
+  return len;
+}
 #if 0
 // virtual methods for io_operations
 int http2_handler::handle_event(const short events) {
@@ -72,6 +87,7 @@ int http2_handler::process_request_from_app(const std::int32_t& handle, const st
     return -1;
   }
   std::cout <<"fn:" << __func__ << " readlen:"<< readlen << std::endl;
+  send_pending_data_to_peer();
 /*
   if(evbuffer_drain(input, (size_t)readlen) != 0) {
     warnx("Fatal error: evbuffer_drain failed");
@@ -85,12 +101,15 @@ int http2_handler::process_request_from_app(const std::int32_t& handle, const st
     return -1;
   }
 #endif
+
+  /*
   int rv;
   rv = nghttp2_session_send(m_ctx_p.get());
   if (rv != 0) {
     std::cout <<"Fatal error:" << nghttp2_strerror(rv) << std::endl;
     return -1;
   }
+  */
   return readlen;
 }
 
@@ -99,7 +118,7 @@ void http2_handler::handle_new_connection(const int& handle, const std::string& 
   m_handle = handle;
   m_client_addr = addr;
   std::cout <<"fn:" << __func__ << ":"<< __LINE__ <<" handle:" << m_handle << std::endl;
-#if 0
+
   nghttp2_settings_entry iv[1] = {
       {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100}};
   int rv;
@@ -110,6 +129,7 @@ void http2_handler::handle_new_connection(const int& handle, const std::string& 
     std::cout <<"fn:" << __func__ <<":"<< __LINE__ << "Fatal error:" << nghttp2_strerror(rv);
     //return -1;
   }
+#if 0
   rv = nghttp2_session_send(m_ctx_p.get());
   if (rv != 0) {
     std::cout <<"Fatal error:" << nghttp2_strerror(rv) << std::endl;
@@ -164,6 +184,8 @@ std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
         return ctx_p->on_request_recv(frame->hd.stream_id);
       }
       break;
+
+#if 0
     case NGHTTP2_SETTINGS:
     {
       std::cout <<"fn:"<<__func__ << ":" << __LINE__ << " NGHTTP2_SETTINGS frame is received" << std::endl;
@@ -184,6 +206,8 @@ std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
       }
     }
       break;
+#endif
+
     default:
       break;
   }

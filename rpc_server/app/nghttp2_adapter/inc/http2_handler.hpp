@@ -363,6 +363,7 @@ class http2_handler {
    
     std::int32_t process_request_from_app(const std::int32_t& handle, const std::string& in_data);
 
+    std::int32_t send_pending_data_to_peer();
     // interface callbacks to nghttp2 library  
     static ssize_t send_callback2(nghttp2_session *session,
                            const uint8_t *data, size_t length,
