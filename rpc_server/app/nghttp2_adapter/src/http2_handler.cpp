@@ -181,6 +181,19 @@ ssize_t http2_handler::send_callback2(nghttp2_session *ng_session,
   return(ret);
 }
 
+// The callback function for receiving data chunks
+std::int32_t http2_handler::on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags, int32_t stream_id,
+                            const uint8_t *data, size_t len, void *user_data) {
+  http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
+  if(ctx_p->is_stream_data_found(stream_id)) {
+    auto &strm_data = ctx_p->get_stream_data(stream_id);
+    strm_data.app_data(data, len);
+    std::cout <<"fn:"<<__PRETTY_FUNCTION__ <<":" << __LINE__ << " path:"<< strm_data.request_path() << " data:" << strm_data.app_data() << std::endl;
+  }
+  
+  return 0;
+}
+
 std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, 
                        void *user_data) {

@@ -39,6 +39,8 @@ class http2_handler {
       std::string m_request_path;
       std::int32_t m_stream_id;
       std::int32_t m_fd;
+      std::string m_data;
+
       stream_data(std::string request_path, std::int32_t stream_id, std::int32_t fd) :
         m_request_path(request_path),
         m_stream_id(stream_id),
@@ -46,10 +48,12 @@ class http2_handler {
       std::string request_path() const { return m_request_path;}
       std::int32_t stream_id() const {return m_stream_id;}
       std::int32_t fd() const {return m_fd;}
+      std::string app_data() const { return m_data;}
 
       void request_path(const std::string& path) {m_request_path = path;}
       void stream_id(std::int32_t& id) {m_stream_id = id;}
       void fd(std::int32_t& handle) {m_fd = handle;}
+      void app_data(const std::uint8_t* in_p, size_t len) {m_data = std::string(reinterpret_cast<const char*>(in_p), len);}
     };
 
     // ctor
@@ -343,7 +347,8 @@ class http2_handler {
        * `nghttp2_session_callbacks_set_on_begin_headers_callback()`.
       */ 
       nghttp2_session_callbacks_set_on_begin_headers_callback(m_callbacks_p.get(), on_begin_headers_callback);
-
+      
+      nghttp2_session_callbacks_set_on_data_chunk_recv_callback(m_callbacks_p.get(), on_data_chunk_recv_callback);
       nghttp2_session* sess_p = nullptr;
       // creates a session object and copied all provided callbacks into newly created 
       // session. this pointer is returned to every callback invoked by nghttp2 library.
@@ -389,6 +394,9 @@ class http2_handler {
     static int on_begin_headers_callback(nghttp2_session *session,
                  const nghttp2_frame *frame,
                  void *user_data);
+
+    static int on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags, int32_t stream_id,
+                  const uint8_t *data, size_t len, void *user_data);
   private:
     std::unique_ptr<nghttp2_session_callbacks, custom_deleter> m_callbacks_p;
     std::unique_ptr<nghttp2_session , custom_deleter> m_ctx_p;
