@@ -5,23 +5,33 @@
 #include "http2_handler.hpp"
 
 int http2_handler::handle_event(const short events) {
-  std::cout <<"fn:" << __func__ << ":" <<__LINE__ << " events:" << events << std::endl;
+  std::cout <<"fn:" << __func__ << ":" <<__LINE__ << " events:" << std::to_string(events) << std::endl;
   return 0;
+}
+
+std::int32_t http2_handler::tx(const std::uint8_t* data, ssize_t len) {
+
+  ssize_t offset = 0;
+  while(offset != len) {
+    auto ret = write(handle(), data + offset, len - offset);
+    if(ret < 0) {
+      std::cout <<"fn:" << __func__ << ":" << __LINE__ << " could sent only bytes:" << offset << std::endl;
+      return -1;
+    }
+    offset += ret;
+  }
+
+  return offset;
 }
 
 std::int32_t http2_handler::send_pending_data_to_peer() {
   const std::uint8_t *data_p = nullptr;
   ssize_t len = -1;
   while((len = nghttp2_session_mem_send(get_nghttp2_session(), &data_p)) > 0) {
-    ssize_t offset = 0;
-    while(offset != len) {
-      auto ret = write(handle(), data_p + offset, len - offset);
-      if(ret < 0) return -1;
-      offset += ret;
-    }
+    auto sent_bytes = tx(data_p, len);
+    std::cout <<"fn:" << __func__ << ":" << __LINE__ << " sent nbytes:" << sent_bytes << " to peer" << std::endl;
   }
 
-  std::cout <<"fn:" << __func__ << ":" << __LINE__ << " sent nbytes:" << len << " to peer" << std::endl;
   return len;
 }
 #if 0
@@ -74,20 +84,27 @@ int http2_handler::handle_event(const short events) {
 }
 #endif
 
-int http2_handler::process_request_from_app(const std::int32_t& handle, const std::string& in) {
+int http2_handler::process_request_from_peer(const std::int32_t& handle, const std::string& in) {
   std::int64_t readlen;
 
   // m_ctx_p holds all the registered callback (done in init). This will
   // decode the in.data into http2 frames and calls respective callback to deliver to
   // http2_handler.
-  readlen = nghttp2_session_mem_recv(m_ctx_p.get(), reinterpret_cast<const std::uint8_t *>(in.data()), in.length());
-  if(readlen < 0) {
-    std::cout << "fn:" << __func__ <<" line:" << __LINE__ << 
-                 " Fatal error:" << nghttp2_strerror((std::int32_t)readlen) << std::endl;
-    return -1;
+  ssize_t offset = 0;
+  ssize_t len = in.length();
+  while(offset != len) {
+    readlen = nghttp2_session_mem_recv(m_ctx_p.get(), reinterpret_cast<const std::uint8_t *>(in.data() + offset), len-offset);
+    if(readlen < 0) {
+      std::cout << "fn:" << __func__ <<" line:" << __LINE__ << 
+                   " Fatal error:" << nghttp2_strerror((std::int32_t)readlen) << std::endl;
+      return -1;
+    }
+    offset += readlen;
   }
-  std::cout <<"fn:" << __func__ << " readlen:"<< readlen << std::endl;
-  send_pending_data_to_peer();
+
+  std::cout <<"fn:" << __func__ << " nghttp2 gets readlen:"<< offset << std::endl;
+  //auto snd_bytes = send_pending_data_to_peer();
+  //(void)snd_bytes;
 /*
   if(evbuffer_drain(input, (size_t)readlen) != 0) {
     warnx("Fatal error: evbuffer_drain failed");
@@ -102,14 +119,14 @@ int http2_handler::process_request_from_app(const std::int32_t& handle, const st
   }
 #endif
 
-  /*
+  
   int rv;
   rv = nghttp2_session_send(m_ctx_p.get());
   if (rv != 0) {
     std::cout <<"Fatal error:" << nghttp2_strerror(rv) << std::endl;
     return -1;
   }
-  */
+
   return readlen;
 }
 
@@ -119,6 +136,7 @@ void http2_handler::handle_new_connection(const int& handle, const std::string& 
   m_client_addr = addr;
   std::cout <<"fn:" << __func__ << ":"<< __LINE__ <<" handle:" << m_handle << std::endl;
 
+#if 0
   nghttp2_settings_entry iv[1] = {
       {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100}};
   int rv;
@@ -129,6 +147,7 @@ void http2_handler::handle_new_connection(const int& handle, const std::string& 
     std::cout <<"fn:" << __func__ <<":"<< __LINE__ << "Fatal error:" << nghttp2_strerror(rv);
     //return -1;
   }
+#endif
 #if 0
   rv = nghttp2_session_send(m_ctx_p.get());
   if (rv != 0) {
@@ -156,9 +175,9 @@ ssize_t http2_handler::send_callback2(nghttp2_session *ng_session,
   bufferevent_write(bev, data, length);
 #endif
   //tx(handle(), data, length);
-  auto ret = write(ctx_p->handle(), data, length);
-  std::cout << "fn:"<< __func__ << ":" << __LINE__ << " flags:"<< flags<<" sent a packet of length:" 
-            << ret << " on-handle:"<< ctx_p->handle()<< std::endl;
+  auto ret = ctx_p->tx(data, length);
+  std::cout << "fn:"<< __PRETTY_FUNCTION__ << ":" << __LINE__ << " flags:"<< std::to_string(flags) <<" sent a packet of ret:" 
+            << ret << " length:" << length <<" on-handle:"<< ctx_p->handle()<< std::endl;
   return(ret);
 }
 

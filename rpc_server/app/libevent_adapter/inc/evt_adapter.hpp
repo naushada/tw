@@ -74,7 +74,7 @@ class evt_io {
       bufferevent_write(m_buffer_evt_p.get(), (void *)buffer, len); 
     }
 
-    virtual ~evt_io() = default;
+    ~evt_io() { std::cout <<"fn:" << __PRETTY_FUNCTION__ <<":" << __LINE__ <<" dtor"<<std::endl;}
     std::unique_ptr<app_interface>& get_app_interface() {return m_app_interface;}
     // returning managed object of unique_ptr
     struct bufferevent* get_bufferevt() const {return m_buffer_evt_p.get();}

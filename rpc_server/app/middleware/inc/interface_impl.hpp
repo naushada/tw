@@ -13,6 +13,7 @@ class app : public app_interface {
       m_addr() {
     
     }
+    virtual ~app() { std::cout <<"fn:"<< __PRETTY_FUNCTION__ << ":" << __LINE__ << " app interface is reclaimed" << std::endl;}
 
     virtual int handle_event(const short event) override;
     virtual int handle_read(std::int32_t handle, const std::string& in) override;

@@ -63,6 +63,8 @@ class http2_handler {
       }
     }
 
+    virtual ~http2_handler() { std::cout << "fn:"<< __func__ << ":" << __LINE__ << " dtor";}
+
     void create_stream_data(std::int32_t stream_id) {
       m_stream_data.emplace_back("", stream_id, m_handle);
     }
@@ -361,7 +363,8 @@ class http2_handler {
 
     std::int32_t on_request_recv(std::int32_t stream_id);
    
-    std::int32_t process_request_from_app(const std::int32_t& handle, const std::string& in_data);
+    std::int32_t process_request_from_peer(const std::int32_t& handle, const std::string& in_data);
+    std::int32_t tx(const std::uint8_t* data, ssize_t len);
 
     std::int32_t send_pending_data_to_peer();
     // interface callbacks to nghttp2 library  
