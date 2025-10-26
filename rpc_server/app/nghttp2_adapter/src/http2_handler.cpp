@@ -186,14 +186,17 @@ std::int32_t http2_handler::on_data_chunk_recv_callback(nghttp2_session *session
                             const uint8_t *data, size_t len, void *user_data) {
   http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
   if(ctx_p->is_stream_data_found(stream_id)) {
-    auto &strm_data = ctx_p->get_stream_data(stream_id);
-    strm_data.app_data(data, len);
-    std::cout <<"fn:"<<__PRETTY_FUNCTION__ <<":" << __LINE__ << " path:"<< strm_data.request_path() << " data:" << strm_data.app_data() << std::endl;
+    auto it = ctx_p->get_stream_data(stream_id);
+    if(it != ctx_p->get_stream_data().end()) {
+      it->app_data(data, len);
+      std::cout <<"fn:"<<__PRETTY_FUNCTION__ <<":" << __LINE__ << " path:"<< it->request_path() << " data:" << it->app_data() << std::endl;
+    }
   }
   
   return 0;
 }
 
+// This function is invoked by nghttp2 once either HEADER or DATA FRAME is received completly.
 std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, 
                        void *user_data) {
@@ -212,33 +215,12 @@ std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
 
         /* For DATA and HEADERS frame, this callback may be called after
            on_stream_close_callback. Check that stream still alive. */
-        auto& stream_data = ctx_p->get_stream_data(frame->hd.stream_id);
-        return ctx_p->on_request_recv(frame->hd.stream_id);
+        auto it = ctx_p->get_stream_data(frame->hd.stream_id);
+        if(it != ctx_p->get_stream_data().end()) { 
+          return ctx_p->on_request_recv(frame->hd.stream_id);
+        }
       }
       break;
-
-#if 0
-    case NGHTTP2_SETTINGS:
-    {
-      std::cout <<"fn:"<<__func__ << ":" << __LINE__ << " NGHTTP2_SETTINGS frame is received" << std::endl;
-      nghttp2_settings_entry iv[1] = {
-        {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100}};
-      int rv;
-
-      rv = nghttp2_submit_settings(ctx_p->get_nghttp2_session(), NGHTTP2_FLAG_NONE, iv,
-                               ARRLEN(iv));
-      if (rv != 0) {
-        std::cout <<"fn:" << __func__ <<":"<< __LINE__ << "Fatal error:" << nghttp2_strerror(rv);
-        //return -1;
-      }
-      rv = nghttp2_session_send(ctx_p->get_nghttp2_session());
-      if (rv != 0) {
-        std::cout <<"Fatal error:" << nghttp2_strerror(rv) << std::endl;
-        //return -1;
-      }
-    }
-      break;
-#endif
 
     default:
       break;
@@ -258,8 +240,8 @@ std::int32_t http2_handler::on_request_recv(std::int32_t stream_id) {
     return 0;
   }
 
-  auto &strm_data = get_stream_data(stream_id);
-  if(strm_data.request_path().empty()) {
+  auto it = get_stream_data(stream_id);
+  if(it == get_stream_data().end() || it->request_path().empty()) {
     #if 0
     if(error_reply(session, stream_data) != 0) {
       return NGHTTP2_ERR_CALLBACK_FAILURE;
@@ -269,7 +251,7 @@ std::int32_t http2_handler::on_request_recv(std::int32_t stream_id) {
     return 0;
   }
 
-  std::cout <<"peer:"<< m_client_addr <<" GET " << strm_data.request_path() << std::endl;
+  std::cout <<"peer:"<< m_client_addr <<" GET " << it->request_path() << std::endl;
   std::cout <<"Response yet to be sent" << std::endl;
 #if 0
   if(!check_path(stream_data->request_path)) {
@@ -298,7 +280,7 @@ std::int32_t http2_handler::on_request_recv(std::int32_t stream_id) {
 #endif
   if(/*send_response(m_session_p.get(), strm_data.stream_id(), hdrs, ARRLEN(hdrs), fd) != 0*/1) {
     std::cout << "fn:" << __func__ <<" line:" << __LINE__ << " unable to send response" <<
-                 " for stream-id:" << strm_data.stream_id() << std::endl;
+                 " for stream-id:" << it->stream_id() << std::endl;
     return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
   return 0;
@@ -310,7 +292,7 @@ int http2_handler::on_stream_close_callback(nghttp2_session *ng_session,
                        void *user_data) {
   http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
   ctx_p->delete_stream_data(stream_id);
-  std::cout <<"fn:" << __func__ << " dtream_id:"<< stream_id << " closed" << std::endl;
+  std::cout <<"fn:" << __func__ << " stream_id:"<< stream_id << " is closed" << std::endl;
   (void)ng_session;
   (void)error_code;
   return 0;
@@ -320,7 +302,7 @@ int http2_handler::on_stream_close_callback(nghttp2_session *ng_session,
  * @brief This function is called by nghttp2 library to
  * deliver the header's fields to application
  */
-int http2_handler::on_header_callback(nghttp2_session *ng_session,
+std::int32_t http2_handler::on_header_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, const std::uint8_t *name,
                        size_t namelen, const std::uint8_t *value,
                        size_t valuelen, std::uint8_t flags,
@@ -331,7 +313,8 @@ int http2_handler::on_header_callback(nghttp2_session *ng_session,
   std::string name_str(reinterpret_cast<const char*>(name), namelen);
   std::string value_str(reinterpret_cast<const char *>(value), valuelen);
 
-  std::cout <<"fn:"<< __func__ << ":" << __LINE__ << " flags:" << std::to_string(flags) << "frame-type:" <<std::to_string(frame->hd.type) 
+  std::cout <<"fn:"<< __PRETTY_FUNCTION__ << ":" << __LINE__ << " flags:" << std::to_string(flags) 
+            << "frame-type:" <<std::to_string(frame->hd.type) 
             << std::endl;
 
   switch(frame->hd.type) {
@@ -340,18 +323,20 @@ int http2_handler::on_header_callback(nghttp2_session *ng_session,
         break;
       }
 
-      auto& strm_data = ctx_p->get_stream_data(frame->hd.stream_id);
+      auto it = ctx_p->get_stream_data(frame->hd.stream_id);
       if(name_str.length() == PATH.length() && PATH == name_str) {
+        std::cout <<"matched :path" << std::endl;
         auto end_pos = value_str.find('?');
         if(end_pos != std::string::npos) {
           auto path = value_str.substr(0, end_pos);
-          strm_data.request_path(ctx_p->percent_decode(path));
-        } else {
-          strm_data.request_path(name_str);
+          it->request_path(ctx_p->percent_decode(path));
+        } else if(it != ctx_p->get_stream_data().end()) {
+          it->request_path(value_str);
+          std::cout << "This is the path:" << it->request_path() << " value_str:" << value_str << std::endl;
         }
       }
       std::cout <<"fn:" << __func__ << ":" << __LINE__ << " name-str:"<< name_str <<" value-str:"<< value_str << " path:" 
-                << strm_data.request_path() << std::endl;
+                << it->request_path() << std::endl;
       break;
   }
   return 0;
@@ -367,18 +352,14 @@ int http2_handler::on_begin_headers_callback(nghttp2_session *ng_session,
                        void *user_data) {
   http2_handler *ctx_p = static_cast<http2_handler *>(user_data);
 
-  std::cout << "fn:" << __func__ <<" frame-type:" <<std::to_string(frame->hd.type) << " stream-id:" << std::to_string(frame->hd.stream_id) 
-            << " created successfully"<< std::endl;
-
   if(frame->hd.type != NGHTTP2_HEADERS ||
     frame->headers.cat != NGHTTP2_HCAT_REQUEST) {
     return 0;
   }
 
   ctx_p->create_stream_data(frame->hd.stream_id);
-  
-  //nghttp2_session_set_stream_user_data(session, frame->hd.stream_id, user_data);
-
+  std::cout << "fn:" << __func__ <<" frame-type:" <<std::to_string(frame->hd.type) << " stream-id:" << std::to_string(frame->hd.stream_id) 
+            << " created successfully"<< std::endl;
   return 0;
 }
 

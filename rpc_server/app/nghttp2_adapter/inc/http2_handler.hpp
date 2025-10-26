@@ -92,15 +92,13 @@ class http2_handler {
       m_stream_data.erase(new_end, m_stream_data.end());
     }
 
-    stream_data& get_stream_data(std::int32_t stream_id) {
-      auto it = std::find_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {
+    std::vector<stream_data>::iterator get_stream_data(std::int32_t stream_id) {
+      return(std::find_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {
           return(ent.stream_id() == stream_id);
-        });
-
-      if(it != m_stream_data.end()) {
-        return *it;
-      }
+        }));
     }
+
+    auto& get_stream_data() const {return m_stream_data;}
 
     /* Returns int value of hex string character |c| */
     std::uint8_t hex_to_uint(std::uint8_t c) {
