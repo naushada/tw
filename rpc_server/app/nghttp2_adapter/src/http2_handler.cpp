@@ -84,6 +84,11 @@ int http2_handler::handle_event(const short events) {
 }
 #endif
 
+/**
+ * @brief This is the entry function for nghttp2 library.Feed received data into
+ *        nghttp2 library for heavy lifting and decoding HEADER or DATA Frame of
+ *        HTTP2 protocol.
+ */
 int http2_handler::process_request_from_peer(const std::int32_t& handle, const std::string& in) {
   std::int64_t readlen;
 
@@ -102,23 +107,7 @@ int http2_handler::process_request_from_peer(const std::int32_t& handle, const s
     offset += readlen;
   }
 
-  std::cout <<"fn:" << __func__ << " nghttp2 gets readlen:"<< offset << std::endl;
-  //auto snd_bytes = send_pending_data_to_peer();
-  //(void)snd_bytes;
-/*
-  if(evbuffer_drain(input, (size_t)readlen) != 0) {
-    warnx("Fatal error: evbuffer_drain failed");
-    return -1;
-  }
-*/
-
-#if 0
-  if(session_send(m_session_p.get()) != 0) {
-    std::cout <<"line:"<< __LINE__ << " session_send failed" << std::endl;
-    return -1;
-  }
-#endif
-
+  std::cout <<"fn:" << __PRETTY_FUNCTION__ << " feed nbytes:"<< offset <<" to nghttp2 library for processing HTTP2" << std::endl;
   
   int rv;
   rv = nghttp2_session_send(m_ctx_p.get());
@@ -201,11 +190,18 @@ std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, 
                        void *user_data) {
   http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
-  std::cout << "fn:" << __func__ <<":" << __LINE__ << "frame:" << std::to_string(frame->hd.type) << std::endl;
   switch(frame->hd.type) {
     case NGHTTP2_DATA:
+    {
+      std::cout << "fn:" << __PRETTY_FUNCTION__ <<":" << __LINE__ << "complete data-frame:" << std::to_string(frame->hd.type) << std::endl;
+      nghttp2_nv hdrs[] = {MAKE_NV(":status", "200")}; 
+      auto rv = nghttp2_submit_response(ng_session, frame->hd.stream_id, hdrs, ARRLEN(hdrs), NULL);
+      if (rv != 0) {
+      }
+    }
+    break;
     case NGHTTP2_HEADERS:
-      std::cout << "fn:" << __func__ <<":" << __LINE__ << "frame:" << std::to_string(frame->hd.type) << std::endl;
+      std::cout << "fn:" << __PRETTY_FUNCTION__ <<":" << __LINE__ << "complete header-frame:" << std::to_string(frame->hd.type) << std::endl;
       /* Check that the client request has finished */
       if(frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
         if(!ctx_p->is_stream_data_found(frame->hd.stream_id)) {
