@@ -14,6 +14,7 @@ int app::handle_read(std::int32_t handle, const std::string& in) {
   // feed to nghttp2 layer to decode request per HTTP2 protocol
   get_http2_handler().process_request_from_peer(handle, in);
   std::cout <<"fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << " handle_read is done" << std::endl;
+  const auto& strm_data = get_http2_handler().get_stream_data();
 }
 
 void app::handle_new_connection(const int& handle, const std::string& addr) {

@@ -24,11 +24,15 @@ class app : public app_interface {
     http2_handler& get_http2_handler() { return *m_http2_handler;}
     std::int32_t handle() const { return m_handle; }
     std::string addr() const { return m_addr; }
+    
+    std::unordered_map<std::string, std::string>& get_requested_rpc() {return m_requested_rpc;}
+    void insert_requested_rpc(const std::string& rpc_path, const std::string& rpc_request) { m_requested_rpc.emplace(rpc_path, rpc_request);}
 
   private:
     std::unique_ptr<http2_handler> m_http2_handler;
     std::int32_t m_handle;
     std::string m_addr;
+    std::unordered_map<std::string, std::string> m_requested_rpc;
 };
 
 #endif
