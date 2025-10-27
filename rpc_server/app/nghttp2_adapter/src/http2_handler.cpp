@@ -34,55 +34,6 @@ std::int32_t http2_handler::send_pending_data_to_peer() {
 
   return len;
 }
-#if 0
-// virtual methods for io_operations
-int http2_handler::handle_event(const short events) {
-  std::cout << "fn:" << __func__ << " the event:" << events << " is" << std::endl;
-  if(events & BEV_EVENT_CONNECTED) {
-    std::cout << "fn:" << __func__ << " peer is connected" << std::endl;
-    #if 0
-    //const unsigned char *alpn = NULL;
-    //unsigned int alpnlen = 0;
-    //SSL *ssl;
-
-    fprintf(stderr, "%s connected\n", http2_handler->client_addr);
-
-    ssl = bufferevent_openssl_get_ssl(http2_handler->bev);
-
-    SSL_get0_alpn_selected(ssl, &alpn, &alpnlen);
-
-    if (alpn == NULL || alpnlen != 2 || memcmp("h2", alpn, 2) != 0) {
-      fprintf(stderr, "%s h2 is not negotiated\n", http2_handler->client_addr);
-      delete_http2_http2_handler(http2_handler);
-      return;
-    }
-
-    initialize_nghttp2_session(http2_handler);
-
-    if(send_server_connection_header(http2_handler) != 0 ||
-        session_send(http2_handler) != 0) {
-      delete_http2_http2_handler(http2_handler);
-      return;
-    }
-
-    return;
-  #endif
-  }
-
-  if(events & BEV_EVENT_EOF) {
-    std::cout << "fn:" << __func__<<" peer:"<< client_addr() << 
-                 " for handle:" <<  handle() << " is closed"<<std::endl;
-  } else if(events & BEV_EVENT_ERROR) {
-    std::cout << "fn:" << __func__<<" peer:"<< client_addr() << 
-                 " for handle:"<< handle() << " event Error"<<std::endl;
-  } else if(events & BEV_EVENT_TIMEOUT) {
-    std::cout << "fn:" << __func__<<" peer:"<< client_addr() << 
-                 " for handle:" << handle() << " event timed out"<<std::endl;
-  }
-  //delete_http2_http2_handler(http2_handler);
-  return 0;
-}
-#endif
 
 /**
  * @brief This is the entry function for nghttp2 library.Feed received data into
@@ -125,7 +76,7 @@ void http2_handler::handle_new_connection(const int& handle, const std::string& 
   m_client_addr = addr;
   std::cout <<"fn:" << __func__ << ":"<< __LINE__ <<" handle:" << m_handle << std::endl;
 
-#if 0
+
   nghttp2_settings_entry iv[1] = {
       {NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100}};
   int rv;
@@ -136,14 +87,6 @@ void http2_handler::handle_new_connection(const int& handle, const std::string& 
     std::cout <<"fn:" << __func__ <<":"<< __LINE__ << "Fatal error:" << nghttp2_strerror(rv);
     //return -1;
   }
-#endif
-#if 0
-  rv = nghttp2_session_send(m_ctx_p.get());
-  if (rv != 0) {
-    std::cout <<"Fatal error:" << nghttp2_strerror(rv) << std::endl;
-    //return -1;
-  }
-#endif
 }
 
 void http2_handler::handle_connection_close(std::int32_t handle) {
@@ -154,15 +97,7 @@ ssize_t http2_handler::send_callback2(nghttp2_session *ng_session,
                                  const uint8_t *data, size_t length,
                                  int flags, void *user_data) {
   http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
-#if 0
-  struct bufferevent *bev = sess_data->get_bufferevent();
-  /* Avoid excessive buffering in server side. */
-  if(evbuffer_get_length(bufferevent_get_output(bev)) >= OUTPUT_WOULDBLOCK_THRESHOLD) {
-    return NGHTTP2_ERR_WOULDBLOCK;
-  }
 
-  bufferevent_write(bev, data, length);
-#endif
   //tx(handle(), data, length);
   auto ret = ctx_p->tx(data, length);
   std::cout << "fn:"<< __PRETTY_FUNCTION__ << ":" << __LINE__ << " flags:"<< std::to_string(flags) <<" sent a packet of ret:" 
@@ -249,31 +184,6 @@ std::int32_t http2_handler::on_request_recv(std::int32_t stream_id) {
 
   std::cout <<"peer:"<< m_client_addr <<" GET " << it->request_path() << std::endl;
   std::cout <<"Response yet to be sent" << std::endl;
-#if 0
-  if(!check_path(stream_data->request_path)) {
-    if(error_reply(session, stream_data) != 0) {
-      return NGHTTP2_ERR_CALLBACK_FAILURE;
-    }
-    return 0;
-  }
-
-  for(rel_path = stream_data->request_path; *rel_path == '/'; ++rel_path)
-    ;
-  fd = open(rel_path, O_RDONLY);
-
-  if(fd == -1) {
-    if(error_reply(session, stream_data) != 0) {
-      return NGHTTP2_ERR_CALLBACK_FAILURE;
-    }
-    return 0;
-  }
-  stream_data->fd = fd;
-
-  if(send_response(session, stream_data->stream_id, hdrs, ARRLEN(hdrs), fd) != 0) {
-    close(fd);
-    return NGHTTP2_ERR_CALLBACK_FAILURE;
-  }
-#endif
   if(/*send_response(m_session_p.get(), strm_data.stream_id(), hdrs, ARRLEN(hdrs), fd) != 0*/1) {
     std::cout << "fn:" << __func__ <<" line:" << __LINE__ << " unable to send response" <<
                  " for stream-id:" << it->stream_id() << std::endl;
