@@ -16,12 +16,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -Wall -Wextra")
 include_directories(inc)
 include_directories(../nghttp2_adapter/inc)
 include_directories(../libevent_adapter/inc)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../third_party/gnmi)
 
 #all files from src directory, the file(GLOB...) allows for wildcard additions:
 file(GLOB SOURCES "src/*.cpp")
 
 add_library(app_intf ${SOURCES})
-target_link_libraries(app_intf http2_proto pthread ssl crypto ${LIBEVENT_LIBRARIES})
+target_link_libraries(app_intf gnmi http2_proto pthread ssl crypto ${LIBEVENT_LIBRARIES})
 target_include_directories(app_intf PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 #target_include_directories(server_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
