@@ -16,7 +16,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -Wall -Wextra")
 include_directories(inc)
 include_directories(../nghttp2_adapter/inc)
 include_directories(../libevent_adapter/inc)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../third_party/gnmi)
+#include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../idl)
+message(STATUS ":" ${PROTO_INCLUDE_DIRS})
+include_directories(${PROTO_INCLUDE_DIRS})
 
 #all files from src directory, the file(GLOB...) allows for wildcard additions:
 file(GLOB SOURCES "src/*.cpp")

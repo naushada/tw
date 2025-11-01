@@ -45,13 +45,15 @@ class http2_handler {
         m_request_path(request_path),
         m_stream_id(stream_id),
         m_fd(fd) {}
+      stream_data() = default;
+      ~stream_data() = default;
       std::string request_path() const { return m_request_path;}
       std::int32_t stream_id() const {return m_stream_id;}
       std::int32_t fd() const {return m_fd;}
       std::string app_data() const { return m_data;}
 
       void request_path(const std::string& path) {m_request_path = path;}
-      void stream_id(std::int32_t& id) {m_stream_id = id;}
+      void stream_id(const std::int32_t& id) {m_stream_id = id;}
       void fd(std::int32_t& handle) {m_fd = handle;}
       void app_data(const std::uint8_t* in_p, size_t len) {m_data = std::string(reinterpret_cast<const char*>(in_p), len);}
     };
@@ -69,36 +71,11 @@ class http2_handler {
 
     virtual ~http2_handler() { std::cout << "fn:"<< __func__ << ":" << __LINE__ << " dtor";}
 
-    void create_stream_data(std::int32_t stream_id) {
-      m_stream_data.emplace_back("", stream_id, m_handle);
-    }
-    
-    bool is_stream_data_found(std::int32_t stream_id) {
-      auto it = std::find_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {
-        return(ent.stream_id() == stream_id);
-      });
-      
-      return(it != m_stream_data.end());
-    }
-
     void handle_new_connection(const int& handle, const std::string& addr);
     void handle_connection_close(std::int32_t handle);
     int handle_event(const short evt);
 
-    void delete_stream_data(std::int32_t stream_id) {
-      auto new_end = std::remove_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {
-        return stream_id == ent.stream_id();
-      });
-      m_stream_data.erase(new_end, m_stream_data.end());
-    }
-
-    std::vector<stream_data>::iterator get_stream_data(std::int32_t stream_id) {
-      return(std::find_if(m_stream_data.begin(), m_stream_data.end(), [&](const auto& ent) {
-          return(ent.stream_id() == stream_id);
-        }));
-    }
-
-    auto& get_stream_data() const {return m_stream_data;}
+    auto& get_stream_data() {return m_stream_data;}
 
     /* Returns int value of hex string character |c| */
     std::uint8_t hex_to_uint(std::uint8_t c) {
@@ -398,7 +375,7 @@ class http2_handler {
   private:
     std::unique_ptr<nghttp2_session_callbacks, custom_deleter> m_callbacks_p;
     std::unique_ptr<nghttp2_session , custom_deleter> m_ctx_p;
-    std::vector<stream_data> m_stream_data;
+    stream_data m_stream_data;
     std::string m_client_addr;
     std::int32_t m_handle;
 };
