@@ -15,22 +15,22 @@ include_directories(inc)
 include_directories(middleware/inc)
 include_directories(libevent_adapter/inc)
 include_directories(nghttp2_adapter/inc)
-include_directories(third_party/gnmi)
+include_directories(idl)
 
 add_subdirectory(libevent_adapter)
 add_subdirectory(nghttp2_adapter)
 add_subdirectory(middleware)
-add_subdirectory(third_party/gnmi)
+add_subdirectory(idl)
 
 file(GLOB SOURCES "src/*.cpp")
 
 add_executable(app ${SOURCES})
 
-target_include_directories(app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gnmi)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/gnmi)
+target_include_directories(app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/idl)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/idl)
 
 target_link_libraries(app PUBLIC gnmi app_intf)
-target_include_directories(app PUBLIC third_party/gnmi)
+target_include_directories(app PUBLIC idl)
 
 install(TARGETS app
         CONFIGURATIONS Release

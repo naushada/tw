@@ -1,3 +1,0 @@
-[submodule "rpc_server/app/third_party/gnmi"]
-	path = rpc_server/app/third_party/gnmi
-	url = https://github.com/openconfig/gnmi.git
