@@ -17,13 +17,15 @@ int app::handle_read(std::int32_t handle, const std::string& in) {
   //std::vector<http2_handler::stream_data>::const_iterator strm_data_it = get_http2_handler().get_stream_data();
   const auto& strm_vec = http2_handler().get_stream_data();
 
-  if(strm_vec.app_data().length() > 0) {
-    std::cout <<"fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << "RPC:" << strm_vec.request_path() << std::endl;
-    gnmi::SubscribeRequest req;
-    req.ParseFromArray(strm_vec.app_data().data(), strm_vec.app_data().length());
-    std::cout << "Successfully parsed gNMI SubscribeRequest:" << std::endl;
-    // You can now access fields like this:
-    std::cout << req.subscribe().encoding() << std::endl;
+  if(!get_requested_rpc().empty()) {
+    for(auto const&[path, received_data]: get_requested_rpc()) {
+      std::cout <<"fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << "RPC:" << path << std::endl;
+      gnmi::SubscribeRequest req;
+      req.ParseFromArray(received_data.data(), received_data.length());
+      std::cout << "Successfully parsed gNMI SubscribeRequest:" << std::endl;
+      // You can now access fields like this:
+      std::cout << req.subscribe().encoding() << std::endl;
+    }
   }
 }
 

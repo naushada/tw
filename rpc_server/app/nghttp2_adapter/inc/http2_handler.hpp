@@ -69,7 +69,7 @@ class http2_handler {
       }
     }
 
-    virtual ~http2_handler() { std::cout << "fn:"<< __func__ << ":" << __LINE__ << " dtor";}
+    ~http2_handler() { std::cout << "fn:"<< __func__ << ":" << __LINE__ << " dtor" << std::endl;}
 
     void handle_new_connection(const int& handle, const std::string& addr);
     void handle_connection_close(std::int32_t handle);

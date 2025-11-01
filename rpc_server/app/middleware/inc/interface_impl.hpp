@@ -21,6 +21,7 @@ class app : public app_interface {
     virtual void handle_connection_close(int handle) override;
 
     // helper function
+    // Returning managed object of unique_ptr to caller.
     http2_handler& get_http2_handler() { return *m_http2_handler;}
     std::int32_t handle() const { return m_handle; }
     std::string addr() const { return m_addr; }

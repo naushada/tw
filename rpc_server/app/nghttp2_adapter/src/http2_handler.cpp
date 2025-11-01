@@ -49,6 +49,18 @@ int http2_handler::process_request_from_peer(const std::int32_t& handle, const s
   ssize_t offset = 0;
   ssize_t len = in.length();
   while(offset != len) {
+    /** 
+     * @brief: nghttp2 library holds the control and does follwoing
+     * - For Header Frame (1), It invokes
+     *   -- on_begin_headers_callback
+     *   -- on_header_callback - for all header fields
+     *   -- on_frame_recv_callback - to let app know that complete Header is received.
+     *   Finally control is returned from nghttp2_session_mem_recv
+     * - For Data Frame (0), It invokes
+     *   -- on_data_chunk_recv_callback
+     *   -- on_frame_recv_callback - to let app know that complete Data Frame is received and
+     *   Finally control is returned from nghttp2_session_mem_recv
+     * */
     readlen = nghttp2_session_mem_recv(m_ctx_p.get(), reinterpret_cast<const std::uint8_t *>(in.data() + offset), len-offset);
     if(readlen < 0) {
       std::cout << "fn:" << __func__ <<" line:" << __LINE__ << 
@@ -203,7 +215,9 @@ int http2_handler::on_stream_close_callback(nghttp2_session *ng_session,
 
 /**
  * @brief This function is called by nghttp2 library to
- * deliver the header's fields to application
+ * deliver the header's fields to application for HEADER
+ * frame and finally invoked on_frame_recv_callback to let
+ * application know that complete HEADER is received.
  */
 std::int32_t http2_handler::on_header_callback(nghttp2_session *ng_session,
                        const nghttp2_frame *frame, const std::uint8_t *name,
