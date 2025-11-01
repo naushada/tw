@@ -55,7 +55,8 @@ class http2_handler {
       void request_path(const std::string& path) {m_request_path = path;}
       void stream_id(const std::int32_t& id) {m_stream_id = id;}
       void fd(std::int32_t& handle) {m_fd = handle;}
-      void app_data(const std::uint8_t* in_p, size_t len) {m_data = std::string(reinterpret_cast<const char*>(in_p), len);}
+      void app_data(const std::uint8_t* in_p, size_t len) {m_data.assign(reinterpret_cast<const char*>(in_p), len);}
+      void app_data(const std::string& in) {m_data.assign(in);}
     };
 
     // ctor
@@ -119,7 +120,7 @@ class http2_handler {
 
     std::int32_t init() {
       // nghttp2 library will invoke send_callback2 to send http2 DATA or HEADERS frame
-      nghttp2_session_callbacks_set_send_callback(m_callbacks_p.get(), send_callback2);
+      nghttp2_session_callbacks_set_send_callback(m_callbacks_p.get(), on_send_callback2);
       /**
        * @functypedef
        *
@@ -343,12 +344,12 @@ class http2_handler {
 
     std::int32_t on_request_recv(std::int32_t stream_id);
    
-    std::int32_t process_request_from_peer(const std::int32_t& handle, const std::string& in_data);
+    std::int32_t main(const std::int32_t& handle, const std::string& in_datai, std::string& rsp, std::string& path);
     std::int32_t tx(const std::uint8_t* data, ssize_t len);
 
     std::int32_t send_pending_data_to_peer();
     // interface callbacks to nghttp2 library  
-    static ssize_t send_callback2(nghttp2_session *session,
+    static ssize_t on_send_callback2(nghttp2_session *session,
                            const uint8_t *data, size_t length,
                            int flags, void *user_data);
 

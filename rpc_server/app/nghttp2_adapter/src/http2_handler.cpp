@@ -40,12 +40,9 @@ std::int32_t http2_handler::send_pending_data_to_peer() {
  *        nghttp2 library for heavy lifting and decoding HEADER or DATA Frame of
  *        HTTP2 protocol.
  */
-int http2_handler::process_request_from_peer(const std::int32_t& handle, const std::string& in) {
+int http2_handler::main(const std::int32_t& handle, const std::string& in, std::string& out, std::string& path) {
   std::int64_t readlen;
 
-  // m_ctx_p holds all the registered callback (done in init). This will
-  // decode the in.data into http2 frames and calls respective callback to deliver to
-  // http2_handler.
   ssize_t offset = 0;
   ssize_t len = in.length();
   while(offset != len) {
@@ -70,16 +67,27 @@ int http2_handler::process_request_from_peer(const std::int32_t& handle, const s
     offset += readlen;
   }
 
+  if(!get_stream_data().app_data().empty()) {
+    out.assign(get_stream_data().app_data());
+    path.assign(get_stream_data().request_path());
+    get_stream_data().app_data(std::string());
+  }
+
   std::cout <<"fn:" << __PRETTY_FUNCTION__ << " feed nbytes:"<< offset <<" to nghttp2 library for processing HTTP2" << std::endl;
   
   int rv;
+  /**
+   * @brief give nghttp2 an opportunity to send any pending response 
+   * to peer. nghttp2 library will invoke on_send_callback2 to send
+   * actual data to peer.  
+   * */
   rv = nghttp2_session_send(m_ctx_p.get());
   if (rv != 0) {
     std::cout <<"Fatal error:" << nghttp2_strerror(rv) << std::endl;
     return -1;
   }
 
-  return readlen;
+  return offset;
 }
 
 // new client is connected to this server
@@ -105,19 +113,23 @@ void http2_handler::handle_connection_close(std::int32_t handle) {
   std::cout <<"fn:" << __func__ <<":"<<__LINE__ <<" connection is closed" << std::endl;
 }
 
-ssize_t http2_handler::send_callback2(nghttp2_session *ng_session,
+ssize_t http2_handler::on_send_callback2(nghttp2_session *ng_session,
                                  const uint8_t *data, size_t length,
                                  int flags, void *user_data) {
   http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
 
-  //tx(handle(), data, length);
   auto ret = ctx_p->tx(data, length);
   std::cout << "fn:"<< __PRETTY_FUNCTION__ << ":" << __LINE__ << " flags:"<< std::to_string(flags) <<" sent a packet of ret:" 
             << ret << " length:" << length <<" on-handle:"<< ctx_p->handle()<< std::endl;
   return(ret);
 }
 
-// The callback function for receiving data chunks
+/**
+ * @brief This callback in invoked by nghttp2 library to deliver the
+ *   decoded http2 Data frame to application. And it invokes on_frame_recv_callback
+ *   to let app know that complete data frame is received.
+ * @return 0 upon success 
+ * */
 std::int32_t http2_handler::on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags, int32_t stream_id,
                             const uint8_t *data, size_t len, void *user_data) {
   std::cout <<"fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << " data-len:" << len << std::endl;
@@ -240,20 +252,18 @@ std::int32_t http2_handler::on_header_callback(nghttp2_session *ng_session,
         break;
       }
 
-      auto strm_data = ctx_p->get_stream_data();
       if(name_str.length() == PATH.length() && PATH == name_str) {
         std::cout <<"matched :path" << std::endl;
         auto end_pos = value_str.find('?');
         if(end_pos != std::string::npos) {
           auto path = value_str.substr(0, end_pos);
-          strm_data.request_path(ctx_p->percent_decode(path));
+          ctx_p->get_stream_data().request_path(ctx_p->percent_decode(path));
         } else  {
-          strm_data.request_path(value_str);
-          std::cout << "This is the path:" << strm_data.request_path() << " value_str:" << value_str << std::endl;
+          ctx_p->get_stream_data().request_path(value_str);
         }
       }
       std::cout <<"fn:" << __func__ << ":" << __LINE__ << " name-str:"<< name_str <<" value-str:"<< value_str << " path:" 
-                << strm_data.request_path() << std::endl;
+                << ctx_p->get_stream_data().request_path() << std::endl;
       break;
   }
   return 0;
