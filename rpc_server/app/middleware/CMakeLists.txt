@@ -18,13 +18,12 @@ include_directories(../nghttp2_adapter/inc)
 include_directories(../libevent_adapter/inc)
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../idl)
 message(STATUS ":" ${PROTO_INCLUDE_DIRS})
-include_directories(${PROTO_INCLUDE_DIRS})
 
 #all files from src directory, the file(GLOB...) allows for wildcard additions:
 file(GLOB SOURCES "src/*.cpp")
 
 add_library(app_intf ${SOURCES})
-target_link_libraries(app_intf gnmi http2_proto pthread ssl crypto ${LIBEVENT_LIBRARIES})
+target_link_libraries(app_intf PUBLIC gnmi http2_proto pthread ssl crypto ${LIBEVENT_LIBRARIES})
 target_include_directories(app_intf PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 #target_include_directories(server_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -38,3 +37,4 @@ install(TARGETS app_intf
         CONFIGURATIONS Release
         RUNTIME DESTINATION /usr/local/lib
 )
+

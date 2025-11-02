@@ -3,7 +3,7 @@
 
 #include "interface_impl.hpp"
 #include "tcp_server.hpp"
-#include "/home/mnahmed/tw/rpc_server/build/app/idl/gnmi.pb.h"
+#include "gnmi.pb.h"
 
 int app::handle_event(const short event) {
   std::cout <<"fn:" <<__func__ << ":"<<__LINE__ << " events:" << event << std::endl;
