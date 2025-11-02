@@ -99,11 +99,11 @@ void tcp_server<T>::read_cb(struct bufferevent *bev, void *ctx) {
   size_t nbytes = evbuffer_get_length(input);
   // get the contiguous block of data in oneshot
   std::string data_str(reinterpret_cast<char *>(evbuffer_pullup(input, nbytes)), nbytes);
-  std::cout << "fn:" << __PRETTY_FUNCTION__  << " handle:" << handle << " nbytes:" << nbytes << "\ndata:" << data_str << std::endl;
+  //std::cout << "fn:" << __PRETTY_FUNCTION__  << " handle:" << handle << " nbytes:" << nbytes << "\ndata:" << data_str << std::endl;
   auto conn_handler_it = instance->connected_client().find(handle);
   if(conn_handler_it != instance->connected_client().end()) {
     // dispatch receive data to app_interface to process it.
-    std::cout<<"fn:" << __PRETTY_FUNCTION__  << ":" << __LINE__ << " invoking handle_read" << std::endl;
+    //std::cout<<"fn:" << __PRETTY_FUNCTION__  << ":" << __LINE__ << " invoking handle_read" << std::endl;
     conn_handler_it->second->get_app_interface()->handle_read(handle, data_str);
   }
 
@@ -137,7 +137,7 @@ void tcp_server<T>::event_cb(struct bufferevent *bev, short events, void *ctx) {
   if (events & BEV_EVENT_EOF) {
     // closing the connection
     conn_handler_it->second->get_app_interface()->handle_connection_close(handle);
-    std::cout << "fn:" << __func__ << ":"<<__LINE__ << " closing the connection handle:" << handle << std::endl; 
+    //std::cout << "fn:" << __func__ << ":"<<__LINE__ << " closing the connection handle:" << handle << std::endl; 
     instance->connected_client().erase(handle); 
   }
 }

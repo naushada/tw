@@ -23,7 +23,7 @@ class app_interface {
     void handle_new_connection(const int& handle, const std::string& addr,
                    struct event_base* evbase_p,
                    struct bufferevent* bevt_p) {
-      std::cout << "interface new client is connected handle:"<< handle << std::endl;
+      std::cout << "interface new client is connected on handle:"<< handle <<" from peer:" << addr << std::endl;
       m_handle = handle;
       m_evt_base_p = evbase_p;
       m_buffer_evt_p = bevt_p;

@@ -7,15 +7,6 @@
 #include <memory>
 #include <vector>
 
-/*extern "C" {
-  #include <event2/buffer.h>
-  #include <event2/bufferevent.h>
-  #include <sys/types.h>
-  #include <sys/socket.h>
-  #include <event2/event.h>
-  #include <sys/time.h>
-}*/
-
 #include "interface.hpp"
 
 class evt_base {
