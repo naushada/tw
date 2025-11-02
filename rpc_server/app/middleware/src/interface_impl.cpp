@@ -14,7 +14,7 @@ int app::handle_read(std::int32_t handle, const std::string& in) {
   // feed to nghttp2 layer to decode request per HTTP2 protocol
   std::string rsp, path;
   get_http2_handler().main(handle, in, rsp, path);
-  std::cout <<"fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << " handle_read is done" << std::endl;
+  //std::cout <<"fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << " handle_read is done" << std::endl;
   //std::vector<http2_handler::stream_data>::const_iterator strm_data_it = get_http2_handler().get_stream_data();
 
   if(!rsp.empty()) {
