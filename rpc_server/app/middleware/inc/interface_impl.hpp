@@ -3,6 +3,32 @@
 
 #include "interface.hpp"
 #include "http2_handler.hpp"
+#include "gnmi.pb.h"
+#include <google/protobuf/message.h>
+#include <google/protobuf/util/json_util.h>
+
+template <typename T>
+bool DebugString(const std::string& protobuf_payload, T* message) {
+    if (!message->ParseFromString(protobuf_payload)) {
+        std::cerr << "Failed to parse message of type: " << T::descriptor()->full_name() << std::endl;
+        return false;
+    }
+
+    std::cout << "Successfully parsed message type: " << T::descriptor()->full_name() << std::endl;
+
+    // Optional: Convert to JSON for logging
+    std::string json_output;
+    google::protobuf::util::JsonPrintOptions options;
+    options.add_whitespace = true;
+    options.preserve_proto_field_names = true;
+    google::protobuf::util::MessageToJsonString(*message, &json_output, options);
+
+    std::cout << "--- Message as JSON ---" << std::endl;
+    std::cout << json_output << std::endl;
+    std::cout << "-----------------------" << std::endl;
+
+    return true;
+}
 
 class app : public app_interface {
   public:
@@ -43,6 +69,20 @@ class app : public app_interface {
       }
     }
 
+    void print_response_as_json(const gnmi::SubscribeResponse& response) {
+      std::string json_output;
+      google::protobuf::util::JsonPrintOptions options;
+      // Set options for readability
+      options.add_whitespace = true;
+      options.always_print_primitive_fields = true;
+      options.preserve_proto_field_names = true;
+
+      // Convert the entire Protobuf message to a JSON string
+      google::protobuf::util::MessageToJsonString(response, &json_output, options);
+
+      std::cout << "--- gNMI Response as JSON ---" << std::endl;
+      std::cout << json_output << std::endl;
+    }
   private:
     std::unique_ptr<http2_handler> m_http2_handler;
     std::int32_t m_handle;
