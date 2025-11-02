@@ -36,11 +36,11 @@ RUN apt-get update && apt-get install -y \
     libssl3 \
   && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-COPY --from=build /src/build/app/app /app/app
+WORKDIR /opt
+COPY --from=build /src/build/app/app /opt/app
 
 EXPOSE 8989
 
-ENTRYPOINT ["/app/app"]
+CMD ["/opt/app"]
 
 
