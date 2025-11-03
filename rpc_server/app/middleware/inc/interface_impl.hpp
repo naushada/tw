@@ -14,7 +14,7 @@ bool DebugString(const std::string& protobuf_payload, T* message) {
         return false;
     }
 
-    std::cout << "Successfully parsed message type: " << T::descriptor()->full_name() << std::endl;
+    std::cerr << "Successfully parsed message type: " << T::descriptor()->full_name() << std::endl;
 
     // Optional: Convert to JSON for logging
     std::string json_output;
@@ -23,9 +23,9 @@ bool DebugString(const std::string& protobuf_payload, T* message) {
     options.preserve_proto_field_names = true;
     google::protobuf::util::MessageToJsonString(*message, &json_output, options);
 
-    std::cout << "--- Message as JSON ---" << std::endl;
-    std::cout << json_output << std::endl;
-    std::cout << "-----------------------" << std::endl;
+    std::cerr << "--- Message as JSON ---" << std::endl;
+    std::cerr << json_output << std::endl;
+    std::cerr << "-----------------------" << std::endl;
 
     return true;
 }
@@ -39,7 +39,7 @@ class app : public app_interface {
       m_addr() {
     
     }
-    virtual ~app() { std::cout <<"fn:"<< __PRETTY_FUNCTION__ << ":" << __LINE__ << " app interface is reclaimed" << std::endl;}
+    virtual ~app() { std::cerr <<"fn:"<< __PRETTY_FUNCTION__ << ":" << __LINE__ << " app interface is reclaimed" << std::endl;}
 
     virtual int handle_event(const short event) override;
     virtual int handle_read(std::int32_t handle, const std::string& in) override;
@@ -80,8 +80,8 @@ class app : public app_interface {
       // Convert the entire Protobuf message to a JSON string
       google::protobuf::util::MessageToJsonString(response, &json_output, options);
 
-      std::cout << "--- gNMI Response as JSON ---" << std::endl;
-      std::cout << json_output << std::endl;
+      std::cerr << "--- gNMI Response as JSON ---" << std::endl;
+      std::cerr << json_output << std::endl;
     }
   private:
     std::unique_ptr<http2_handler> m_http2_handler;

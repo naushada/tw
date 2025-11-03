@@ -5,7 +5,7 @@
 #include "tcp_server.hpp"
 
 int app::handle_event(const short event) {
-  std::cout <<"fn:" <<__func__ << ":"<<__LINE__ << " events:" << event << std::endl;
+  std::cerr <<"fn:" <<__func__ << ":"<<__LINE__ << " events:" << event << std::endl;
   get_http2_handler().handle_event(event);
 }
 
@@ -37,7 +37,7 @@ int app::handle_read(std::int32_t handle, const std::string& in) {
       }
  
       if(req.request_case() == gnmi::SubscribeRequest::kPoll) {
-        std::cout <<"gnmi::SubscribeRequest::kPoll" << std::endl;
+        std::cerr <<"gnmi::SubscribeRequest::kPoll" << std::endl;
       }
 
       if(req.has_subscribe()) {
