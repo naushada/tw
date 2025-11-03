@@ -6,7 +6,7 @@
 
 int main() {
 
-  auto svc = std::make_unique<tcp_server<app>>("127.0.0.1", 8989);
+  auto svc = std::make_unique<tcp_server<app>>("0.0.0.0", 8989);
   run_evt_loop start; 
   start(svc->get_event_base()); 
   return 0;
