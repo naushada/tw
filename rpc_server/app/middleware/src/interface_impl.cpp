@@ -44,7 +44,7 @@ int app::handle_read(std::int32_t handle, const std::string& in) {
       }
     } else if(rpc_name.length() > 0 && (!rpc_name.compare("Get"))) {
       //
-    } else if(rpc_name.length() > 0 && (!rpc_name.compare("PushOperations"))) {
+    } else if(rpc_name.length() > 0 && (!rpc_name.compare("PushSubscriptionUpdates"))) {
       gnmi::SubscribeResponse rsp;
       DebugString(protobuf_bytes, &rsp);
       // You can now access fields like this:
