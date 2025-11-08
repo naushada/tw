@@ -72,6 +72,4 @@ class app_interface {
 };
 
 
-
-
 #endif

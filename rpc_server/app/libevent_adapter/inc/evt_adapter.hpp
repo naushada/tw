@@ -40,7 +40,7 @@ class evt_base {
     explicit operator bool() const {return (m_event_base_p != nullptr);}
 
   private:
-    std::unique_ptr<struct event_base, evt_base::custom_deleter> m_event_base_p; 
+    std::unique_ptr<struct event_base, evt_base::custom_deleter> m_event_base_p;
 };
 
 class evt_io {
@@ -49,15 +49,16 @@ class evt_io {
   };
 
   public:
-    evt_io(const evt_base& evt_base_ref, evutil_socket_t handle,
-           const std::string& peer_host, const std::int32_t& event,
-           const std::chrono::seconds& secs, std::unique_ptr<app_interface> app_intf) :
-      m_evt_base(evt_base_ref),
-      m_buffer_evt_p(bufferevent_socket_new(m_evt_base.get(), handle, BEV_OPT_CLOSE_ON_FREE)),
+    evt_io(struct event_base* evt_base_p,
+           evutil_socket_t handle,
+           const std::string& peer_host,
+           std::unique_ptr<app_interface> app_intf) :
+      m_evt_base(evt_base_p),
+      m_buffer_evt_p(bufferevent_socket_new(m_evt_base, handle, BEV_OPT_CLOSE_ON_FREE)),
       m_from_host(peer_host),
       m_app_interface(std::move(app_intf)) {
        get_app_interface()->handle_new_connection(handle, m_from_host,
-                                                  m_evt_base.get(), m_buffer_evt_p.get());
+                                                  m_evt_base, m_buffer_evt_p.get());
      
     }
     
@@ -71,7 +72,7 @@ class evt_io {
     struct bufferevent* get_bufferevt() const {return m_buffer_evt_p.get();}
 
   private:
-    const evt_base& m_evt_base;
+    struct event_base* m_evt_base;
     std::unique_ptr<struct bufferevent, evt_io::custom_deleter> m_buffer_evt_p;
     std::string m_from_host;
     std::unique_ptr<app_interface> m_app_interface;

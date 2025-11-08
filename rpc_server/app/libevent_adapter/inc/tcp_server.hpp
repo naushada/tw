@@ -21,16 +21,18 @@ class tcp_server {
   };
 
   public:
+    using handle_t = std::int32_t;
     tcp_server(const std::string& host, const std::uint32_t& port);
     auto& connected_client() { return m_connected_client;}
    
     // This is a callback invoked by libevent when a client is connected 
     static void accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
-                                   struct sockaddr *sa, int socklen, void *ctx);
+                  struct sockaddr *sa, int socklen, void *ctx);
     static void read_cb(struct bufferevent *bev, void *ctx);
-    std::int32_t tx(evutil_socket_t handle, const char* buffer, const size_t& nbytes);
     static void write_cb(struct bufferevent *bev, void *ctx);
     static void event_cb(struct bufferevent *bev, short events, void *ctx);
+
+    std::int32_t tx(evutil_socket_t handle, const char* buffer, const size_t& nbytes);
     const evt_base& get_event_base() const {return *m_evt_base_p;}
     auto create_app_interface() const {return std::make_unique<T>();}
 
@@ -39,7 +41,7 @@ class tcp_server {
     std::unique_ptr<struct evconnlistener, custom_deleter> m_evconn_listener_p;
     std::unique_ptr<T> m_app_interface;
     struct sockaddr_in m_listener_addr;
-    std::unordered_map<std::int32_t, std::unique_ptr<evt_io>> m_connected_client;
+    std::unordered_map<handle_t, std::unique_ptr<evt_io>> m_connected_client;
 };
 
 
@@ -61,30 +63,27 @@ tcp_server<T>::tcp_server(const std::string& host, const std::uint32_t& port) :
     m_evconn_listener_p.reset(evconnlistener_new_bind(get_event_base().get(),
       accept_new_conn_cb,
       this/*This is for *ctx*/,
-      (LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE),
+      (LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_EXEC),
       16/*backlog*/,
       (struct sockaddr*)&m_listener_addr,
       sizeof(m_listener_addr)));
 }
 
-
 template <typename T>
 void tcp_server<T>::accept_new_conn_cb(struct evconnlistener *listener, evutil_socket_t handle,
-                                    struct sockaddr *sa, int socklen, void *ctx) {
+                                       struct sockaddr *sa, int socklen, void *ctx) {
   auto instance = static_cast<tcp_server*>(ctx);
   auto events = EV_READ|EV_WRITE;
                                        
-  auto conn_handler_p = std::make_unique<evt_io>(instance->get_event_base(),
+  auto conn_handler_p = std::make_unique<evt_io>(evconnlistener_get_base(listener),
                                                  handle,
                                                  inet_ntoa(((struct sockaddr_in*)sa)->sin_addr),
-                                                 events,
-                                                 std::chrono::seconds(2),
                                                  instance->create_app_interface()/*per connection*/);
 
   bufferevent_setcb(conn_handler_p->get_bufferevt(), read_cb, write_cb, event_cb, ctx);
   bufferevent_enable(conn_handler_p->get_bufferevt(), events);
 
-  auto res = instance->connected_client().insert(std::pair<std::int32_t, std::unique_ptr<evt_io>>(
+  auto res = instance->connected_client().insert(std::pair<handle_t, std::unique_ptr<evt_io>>(
                                                  handle, std::move(conn_handler_p)));
   if(!res.second) {
     std::cout << "Addition of new client is failed for handle:" << handle << std::endl;
@@ -99,14 +98,14 @@ void tcp_server<T>::read_cb(struct bufferevent *bev, void *ctx) {
   size_t nbytes = evbuffer_get_length(input);
   // get the contiguous block of data in oneshot
   std::string data_str(reinterpret_cast<char *>(evbuffer_pullup(input, nbytes)), nbytes);
-  //std::cout << "fn:" << __PRETTY_FUNCTION__  << " handle:" << handle << " nbytes:" << nbytes << "\ndata:" << data_str << std::endl;
+
   auto conn_handler_it = instance->connected_client().find(handle);
   if(conn_handler_it != instance->connected_client().end()) {
-    // dispatch receive data to app_interface to process it.
-    //std::cout<<"fn:" << __PRETTY_FUNCTION__  << ":" << __LINE__ << " invoking handle_read" << std::endl;
+    // dispatch received application data to app_interface to process it.
     conn_handler_it->second->get_app_interface()->handle_read(handle, data_str);
   }
 
+  // remove the read buffer from event buffer
   evbuffer_drain(input, nbytes);
 }
     
@@ -114,7 +113,7 @@ template <typename T>
 std::int32_t tcp_server<T>::tx(evutil_socket_t handle, const char* buffer, const size_t& nbytes) {
   auto conn_handler_it = connected_client().find(handle);
   if(conn_handler_it != connected_client().end()) {
-    conn_handler_it->second->get_io_operation()->tx(buffer, nbytes);
+    conn_handler_it->second->tx(buffer, nbytes);
     return nbytes;
   }
       
