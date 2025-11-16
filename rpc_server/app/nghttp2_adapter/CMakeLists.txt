@@ -25,12 +25,12 @@ add_library(http2_proto ${SOURCES})
 
 # Use the found paths
 if(NGHTTP2_LIBRARIES AND NGHTTP2_INCLUDE_DIR)
-  target_link_libraries(http2_proto ${NGHTTP2_LIBRARIES})
+  target_link_libraries(http2_proto gnmi ${NGHTTP2_LIBRARIES})
   target_include_directories(http2_proto PUBLIC ${NGHTTP2_INCLUDE_DIR})
 endif()
 
 #target_link_libraries(http2_proto pthread ssl crypto ${LIBEVENT_LIBRARIES} ${NGHTTP2_LIBRARIES})
-target_link_libraries(http2_proto ${NGHTTP2_LIBRARIES})
+#target_link_libraries(http2_proto gnmi ${NGHTTP2_LIBRARIES})
 
 install(TARGETS http2_proto
         CONFIGURATIONS Release

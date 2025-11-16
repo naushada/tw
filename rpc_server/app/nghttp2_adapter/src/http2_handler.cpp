@@ -114,17 +114,19 @@ void http2_handler::handle_connection_close(std::int32_t handle) {
   std::cout <<"fn:" << __PRETTY_FUNCTION__ <<":"<<__LINE__ <<" connection is closed handle:" << handle << std::endl;
 }
 
+/**
+ * @brief nghttp2 library invokes this callback to send
+ * lemgth bytes of deata to peer
+ * */
 ssize_t http2_handler::on_send_callback2(nghttp2_session *ng_session,
-                                 const uint8_t *data, size_t length,
-                                 int flags, void *user_data) {
+                                         const uint8_t *data, size_t length,
+                                         int flags, void *user_data) {
   (void)ng_session;
   (void)flags;
 
   http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
 
   auto ret = ctx_p->tx(data, length);
-  //std::cout << "fn:"<< __PRETTY_FUNCTION__ << ":" << __LINE__ << " flags:"<< std::to_string(flags) <<" sent a packet of ret:" 
-  //          << ret << " length:" << length <<" on-handle:"<< ctx_p->handle()<< std::endl;
   return(ret);
 }
 
@@ -135,13 +137,12 @@ ssize_t http2_handler::on_send_callback2(nghttp2_session *ng_session,
  * @return 0 upon success 
  * */
 std::int32_t http2_handler::on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags, int32_t stream_id,
-                            const uint8_t *data, size_t len, void *user_data) {
+                                                        const uint8_t *data, size_t len, void *user_data) {
 
   (void)session;
   (void)flags;
   (void)stream_id;
 
-  //std::cout <<"fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << " data-len:" << len << std::endl;
   http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
   ctx_p->get_stream_data().app_data(data, len);
   
@@ -159,9 +160,15 @@ std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
   switch(frame->hd.type) {
     case NGHTTP2_DATA:
     {
-      //std::cout << "fn:" << __PRETTY_FUNCTION__ <<":" << __LINE__ << " complete data-frame:" << std::to_string(frame->hd.type) 
-      //          << " stream-id:" << std::to_string(frame->hd.stream_id) << std::endl;
-      nghttp2_nv hdrs[] = {MAKE_NV(":status", "200")}; 
+
+      if(frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
+        std::cout << "fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << " End of stream for DATA frame" << std::endl;
+      }
+
+      nghttp2_nv hdrs[] = {MAKE_NV(":status", "200")};
+      auto req = ctx_p->get_stream_data().app_data();
+      auto path = ctx_p->get_stream_data().request_path();
+      auto rsp = ctx_p->build_response(path, req);
       auto rv = nghttp2_submit_response(ng_session, frame->hd.stream_id, hdrs, ARRLEN(hdrs), NULL);
       if (rv != 0) {
       }
@@ -187,6 +194,37 @@ std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
       break;
   }
   return 0;
+}
+
+ssize_t http2_handler::response_builder_callback(nghttp2_session *session, int32_t stream_id, uint8_t *buf,
+                                                 size_t length, uint32_t *data_flags, nghttp2_data_source *source,
+                                                 void *user_data) {
+
+  http2_handler *ctx_p = static_cast<http2_handler*>(user_data);
+  auto rsp = ctx_p->get_stream_data().rsp_data();
+
+  if(rsp.length() <= length) {
+    *data_flags |= NGHTTP2_DATA_FLAG_EOF;
+    rsp.copy(reinterpret_cast<char *>(buf), rsp.length(), 0);
+    return rsp.length();
+  } else {
+    // rsp.length() > length
+    rsp.copy(reinterpret_cast<char*>(buf), length, 0);
+    auto rem = rsp.substr(length);  
+    ctx_p->get_stream_data().rsp_data(rem);
+    return length;
+  }
+}
+
+std::int32_t http2_handler::submit_response() {
+
+  nghttp2_nv hdrs[] = {MAKE_NV(":status", "200")};
+  nghttp2_data_provider data_prd;
+  data_prd.read_callback = response_builder_callback;
+
+  auto rv = nghttp2_submit_response(get_nghttp2_session(), get_stream_data().stream_id(), hdrs, ARRLEN(hdrs), &data_prd);
+  if (rv != 0) {
+  }
 }
 
 std::int32_t http2_handler::on_request_recv(std::int32_t stream_id) {

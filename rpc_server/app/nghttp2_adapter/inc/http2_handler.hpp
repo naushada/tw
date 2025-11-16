@@ -40,6 +40,7 @@ class http2_handler {
       std::int32_t m_stream_id;
       std::int32_t m_fd;
       std::string m_data;
+      std::string m_rsp;
 
       stream_data(std::string request_path, std::int32_t stream_id, std::int32_t fd) :
         m_request_path(request_path),
@@ -51,12 +52,14 @@ class http2_handler {
       std::int32_t stream_id() const {return m_stream_id;}
       std::int32_t fd() const {return m_fd;}
       std::string app_data() const { return m_data;}
+      std::string rsp_data() const { return m_rsp;}
 
       void request_path(const std::string& path) {m_request_path = path;}
       void stream_id(const std::int32_t& id) {m_stream_id = id;}
       void fd(std::int32_t& handle) {m_fd = handle;}
       void app_data(const std::uint8_t* in_p, size_t len) {m_data.assign(reinterpret_cast<const char*>(in_p), len);}
       void app_data(const std::string& in) {m_data.assign(in);}
+      void rsp_data(const std::string& in) {m_rsp.assign(in);}
     };
 
     // ctor
@@ -116,6 +119,21 @@ class http2_handler {
         res = value;
       }
       return res;
+    }
+
+    std::string get_rpc_name(const std::string& path) {
+      // Find the position of the last occurrence of '/'
+      size_t last_slash_pos = path.find_last_of('/');
+
+      // Check if a slash was found and if it's not the last character
+      if (last_slash_pos != std::string::npos && last_slash_pos != path.length() - 1) {
+        // Extract the substring starting from the character after the last slash
+        return path.substr(last_slash_pos + 1);
+      } else {
+        // Handle cases where no slash is found or the string ends with a slash
+        // You can return the original string, an empty string, or handle as an error
+        return std::string(); 
+      }
     }
 
     std::int32_t init() {
@@ -348,6 +366,10 @@ class http2_handler {
     std::int32_t tx(const std::uint8_t* data, ssize_t len);
 
     std::int32_t send_pending_data_to_peer();
+    std::int32_t submit_response();
+    std::string build_response(const std::string& path, const std::string& rsp);
+    std::string build_isAlive_response();
+    std::string build_notification_response();
     // interface callbacks to nghttp2 library  
     static ssize_t on_send_callback2(nghttp2_session *session,
                            const uint8_t *data, size_t length,
@@ -373,7 +395,12 @@ class http2_handler {
 
     static int on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags, int32_t stream_id,
                   const uint8_t *data, size_t len, void *user_data);
+    static ssize_t response_builder_callback(nghttp2_session *session, int32_t stream_id, uint8_t *buf,
+                                             size_t length, uint32_t *data_flags,
+                                             nghttp2_data_source *source,
+                                             void *user_data);
   private:
+
     std::unique_ptr<nghttp2_session_callbacks, custom_deleter> m_callbacks_p;
     std::unique_ptr<nghttp2_session , custom_deleter> m_ctx_p;
     stream_data m_stream_data;

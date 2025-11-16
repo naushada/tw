@@ -54,20 +54,6 @@ class app : public app_interface {
     
     std::unordered_map<std::string, std::string>& get_requested_rpc() {return m_requested_rpc;}
     void insert_requested_rpc(const std::string& rpc_path, const std::string& rpc_request) { m_requested_rpc.emplace(rpc_path, rpc_request);}
-    std::string get_rpc_name(const std::string& path) {
-      // Find the position of the last occurrence of '/'
-      size_t last_slash_pos = path.find_last_of('/');
-
-      // Check if a slash was found and if it's not the last character
-      if (last_slash_pos != std::string::npos && last_slash_pos != path.length() - 1) {
-        // Extract the substring starting from the character after the last slash
-        return path.substr(last_slash_pos + 1);
-      } else {
-        // Handle cases where no slash is found or the string ends with a slash
-        // You can return the original string, an empty string, or handle as an error
-        return std::string(); 
-      }
-    }
 
     void print_response_as_json(const gnmi::SubscribeResponse& response) {
       std::string json_output;
