@@ -397,6 +397,7 @@ class http2_handler {
     std::int32_t submit_response();
     std::string build_response(const std::string& path, const std::string& rsp);
     std::string build_isAlive_response();
+    std::string build_empty_response();
     std::string build_notification_response();
     // interface callbacks to nghttp2 library  
     static ssize_t on_send_callback2(nghttp2_session *session,

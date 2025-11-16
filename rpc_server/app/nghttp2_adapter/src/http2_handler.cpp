@@ -163,8 +163,24 @@ std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
 
       if(frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
         std::cout << "fn:" << __PRETTY_FUNCTION__ << ":" << __LINE__ << " End of stream for DATA frame" << std::endl;
+        nghttp2_nv hdrs[] = {MAKE_NV(":status", "200")};
+        //auto req = ctx_p->get_stream_data().app_data();
+        //auto path = ctx_p->get_stream_data().request_path();
+        //auto rsp = ctx_p->build_response(path, req);
+        ctx_p->get_stream_data().rsp_data(std::string());
+        auto rv = nghttp2_submit_response(ng_session, frame->hd.stream_id, hdrs, ARRLEN(hdrs), NULL);
+        if (rv != 0) {
+        }
+        return(0);
       }
 
+      auto req = ctx_p->get_stream_data().app_data();
+      auto path = ctx_p->get_stream_data().request_path();
+      auto rsp = ctx_p->build_response(path, req);
+      ctx_p->get_stream_data().rsp_data(rsp);
+      ctx_p->submit_response();
+
+      #if 0
       nghttp2_nv hdrs[] = {MAKE_NV(":status", "200")};
       auto req = ctx_p->get_stream_data().app_data();
       auto path = ctx_p->get_stream_data().request_path();
@@ -172,6 +188,7 @@ std::int32_t http2_handler::on_frame_recv_callback(nghttp2_session *ng_session,
       auto rv = nghttp2_submit_response(ng_session, frame->hd.stream_id, hdrs, ARRLEN(hdrs), NULL);
       if (rv != 0) {
       }
+      #endif
     }
     break;
     case NGHTTP2_HEADERS:
