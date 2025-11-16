@@ -8,6 +8,10 @@
 #include <iostream>
 #include <memory>
 
+#include "gnmi.pb.h"
+#include <google/protobuf/message.h>
+#include <google/protobuf/util/json_util.h>
+
 extern "C" {
 #include <nghttp2/nghttp2.h>
 #include <nghttp2/nghttp2ver.h>
@@ -20,6 +24,30 @@ extern "C" {
     (uint8_t *)NAME,   (uint8_t *)VALUE,     sizeof(NAME) - 1,                 \
     sizeof(VALUE) - 1, NGHTTP2_NV_FLAG_NONE,                                   \
   }
+
+template <typename T>
+bool DebugString(const std::string& protobuf_payload, T* message) {
+    if (!message->ParseFromString(protobuf_payload)) {
+        std::cerr << "Failed to parse message of type: " << T::descriptor()->full_name() << std::endl;
+        return false;
+    }
+
+    std::cerr << "Successfully parsed message type: " << T::descriptor()->full_name() << std::endl;
+
+    // Optional: Convert to JSON for logging
+    std::string json_output;
+    google::protobuf::util::JsonPrintOptions options;
+    options.add_whitespace = true;
+    options.preserve_proto_field_names = true;
+    google::protobuf::util::MessageToJsonString(*message, &json_output, options);
+
+    std::cerr << "--- Message as JSON ---" << std::endl;
+    std::cerr << json_output << std::endl;
+    std::cerr << "-----------------------" << std::endl;
+
+    return true;
+}
+
 
 // per http2 connection data
 class http2_handler {

@@ -7,6 +7,7 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/util/json_util.h>
 
+#if 0
 template <typename T>
 bool DebugString(const std::string& protobuf_payload, T* message) {
     if (!message->ParseFromString(protobuf_payload)) {
@@ -29,6 +30,7 @@ bool DebugString(const std::string& protobuf_payload, T* message) {
 
     return true;
 }
+#endif
 
 class app : public app_interface {
   public:
@@ -55,6 +57,7 @@ class app : public app_interface {
     std::unordered_map<std::string, std::string>& get_requested_rpc() {return m_requested_rpc;}
     void insert_requested_rpc(const std::string& rpc_path, const std::string& rpc_request) { m_requested_rpc.emplace(rpc_path, rpc_request);}
 
+#if 0
     void print_response_as_json(const gnmi::SubscribeResponse& response) {
       std::string json_output;
       google::protobuf::util::JsonPrintOptions options;
@@ -69,6 +72,8 @@ class app : public app_interface {
       std::cerr << "--- gNMI Response as JSON ---" << std::endl;
       std::cerr << json_output << std::endl;
     }
+#endif
+
   private:
     std::unique_ptr<http2_handler> m_http2_handler;
     std::int32_t m_handle;
